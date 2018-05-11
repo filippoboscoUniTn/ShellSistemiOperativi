@@ -1,2 +1,2 @@
-# Nicolas si è aggiunto al gruppo
+# Nicolas si è aggiunto al progetto
 # ShellSistemiOperativi
