@@ -31,6 +31,8 @@
 
 #define ARG_CODE_ERROR -1
 
+#define CMD_EXP_BUFF_SIZE 512
+
 void printUsage( char* _prog_name ){
 	printf("usage: %s [-o | --outfile <file>] [-e | --errfile <file>] [-m | --maxlen <value>]\n	", _prog_name);
 	exit(EXIT_SUCCESS);
@@ -71,18 +73,21 @@ int main(int argc, char **argv){
 	curr_arg = 1;//argv[0] always executable name
 
 	while( curr_arg < argc ){
-		t_arg = argv[curr_arg];
-		arg_code = getcode(t_arg);
+
+		t_arg = argv[curr_arg]; //catching actual parameter
+		arg_code = getcode(t_arg); //catching actual parameter's code
 
 		printf("t_arg: %s\n", t_arg);
 		printf("arg_code: %i\n", arg_code);
 
+		//based on the argument's code we know where/how to save the value
 		switch(arg_code){
+
 
 			case L_ARG_STDOUTFILE:
 			case S_ARG_STDOUTFILE:
-				curr_arg++;
-				stdout_filepath = argv[curr_arg];
+				curr_arg++; //next arg to catch the value
+				stdout_filepath = argv[curr_arg]; //catching the value
 				printf("stdout filepath: %s\n", stdout_filepath);
 				break;
 
@@ -111,13 +116,29 @@ int main(int argc, char **argv){
 				printf("code: %i\n", arg_code);
 				break;
 		}
-		curr_arg++;
+
+		curr_arg++; //in every case we advance to next arg
 	}
 
 	printf("outfile: %s\n", stdout_filepath);
 	printf("errfile: %s\n", stderr_filepath);
 	printf("max_len: %i\n", max_len);
+	printf("\n");
 
+	//reading commands expressions from stdin logic
+	char input[CMD_EXP_BUFF_SIZE];
+
+	printf("Shell started.\ntype '/quit' to exit.\n\n");
+
+	do{
+		fflush(stdin); //flushing stream for cleaning the input
+		printf("> "); // prompt
+		fgets(input, CMD_EXP_BUFF_SIZE, stdin); // saves the input in the buffer to be tokenized
+		printf("--> %s", input); //tanto per vedere se funzionava
+
+	} while( strcmp(input, "/quit\n") != 0 ); //anche qua possiamo cambiare stringa/sequenza di escape
+
+	printf("\nExited succesfully.\n");
 	exit(EXIT_SUCCESS);
 
 }
