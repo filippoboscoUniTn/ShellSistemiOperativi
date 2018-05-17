@@ -1,54 +1,144 @@
-
-#include <unistd.h>
+#ifndef __STDIO_H__
+#define __STDIO_H__
 #include <stdio.h>
+#endif
+
+#ifndef __STDLIB_H__
+#define __STDLIB_H__
 #include <stdlib.h>
+#endif
 
+#ifndef __UNISTD_H__
+#define __UNISTD_H__
+#include <unistd.h>
+#endif
+
+#ifndef __STRING_H__
+#define __STRING_H__
 #include <string.h>
-#include <fcntl.h>
+#endif
+
+//ARGUMENTS CODE DEFINITION
+//starting with S --> single hyphen arguments i.e. -o
+//starting with L --> double hyphen arguments i.e. --outfile
+//divided into many argument classes
+#define S_ARG_STDOUTFILE 10
+#define L_ARG_STDOUTFILE 1000
+#define S_ARG_STDERRFILE 20
+#define L_ARG_STDERRFILE 2000
+#define S_ARG_MAXLEN 30
+#define L_ARG_MAXLEN 3000
+
+#define ARG_CODE_ERROR -1
+
+#define CMD_EXP_BUFF_SIZE 512
+
+void printUsage( char* _prog_name ){
+	printf("usage: %s [-o | --outfile <file>] [-e | --errfile <file>] [-m | --maxlen <value>]\n	", _prog_name);
+	exit(EXIT_SUCCESS);
+}
+
+//function to dinamically return arguments codes
+int getcode(char *_arg){
+	if(strcmp(_arg, "-o\0") == 0){ return S_ARG_STDOUTFILE; }
+	if(strcmp(_arg, "--outfile\0") == 0){ return L_ARG_STDOUTFILE; }
+	if(strcmp(_arg, "-e\0") == 0){ return S_ARG_STDERRFILE; }
+	if(strcmp(_arg, "--errfile\0") == 0){ return L_ARG_STDERRFILE; }
+	if(strcmp(_arg, "-m\0") == 0){ return S_ARG_MAXLEN; }
+	if(strcmp(_arg, "--maxlen\0") == 0){ return L_ARG_MAXLEN; }
+
+	return ARG_CODE_ERROR;
+}
+
+//main logic of the shell
+int main(int argc, char **argv){
+
+	//here we check if arguments list is wrong
+	//at least one output file name is needed, other arguments are optional
+	if( argc < 2 ){ //first argument is always executable name
+		printf("Not enough arguments: you need to specify at least one output file. \n");
+		printUsage(argv[0]);
+		exit(EXIT_SUCCESS);
+	}
+
+	int curr_arg; //for loop argument counter
+	char *t_arg; //temporary argument holder
+	int arg_code; //argument code holder
+
+	//arguments variables
+	char *stdout_filepath;
+	char *stderr_filepath;
+	int max_len;
+
+	curr_arg = 1;//argv[0] always executable name
+
+	while( curr_arg < argc ){
+
+		t_arg = argv[curr_arg]; //catching actual parameter
+		arg_code = getcode(t_arg); //catching actual parameter's code
+
+		printf("t_arg: %s\n", t_arg);
+		printf("arg_code: %i\n", arg_code);
+
+		//based on the argument's code we know where/how to save the value
+		switch(arg_code){
 
 
-#define MAX_ARGS 128
-#define ARGS_MAX_LEN 64
+			case L_ARG_STDOUTFILE:
+			case S_ARG_STDOUTFILE:
+				curr_arg++; //next arg to catch the value
+				stdout_filepath = argv[curr_arg]; //catching the value
+				printf("stdout filepath: %s\n", stdout_filepath);
+				break;
 
-int main(int argc,char** argv){
+			case L_ARG_STDERRFILE:
+			case S_ARG_STDERRFILE:
+				curr_arg++;
+				stderr_filepath = argv[curr_arg];
+				printf("stderr filepath: %s\n", stderr_filepath);
+				break;
 
+			case L_ARG_MAXLEN:
+			case S_ARG_MAXLEN:
+				curr_arg++;
+				max_len = atoi(argv[curr_arg]);
+				printf("max_len: %i\n", max_len);
+				break;
 
+			case ARG_CODE_ERROR:
+				printf("incorrect argument! \n aborting (to handle interactive mode) \n");
+				printf("code: %i\n", arg_code);
+				exit(EXIT_FAILURE);
+				break;
 
-  char args[MAX_ARGS][ARGS_MAX_LEN];
-  char* taskControllerImg = "taskController";
+			default:
+				printf("default??\n");
+				printf("code: %i\n", arg_code);
+				break;
+		}
 
-  //Controllo argomenti
-  if( argc <= 1 || ( (MAX_ARGS - argc +1) < 0 ) ){ //Errore nell'invocare il programma, 1 < numero argomenti < MAX_ARGS
-    printf("Error : Incrorrect usage!\n");
-    exit(EXIT_FAILURE);
-  }
-  //Copia dei comandi e degli operatori
-  int arg;
-  for(arg=0;arg <(argc-1);arg++){
-    printf("arg = %d\n",arg);
-    strcpy(args[arg],argv[arg+1]);
-    printf("Shell's argument #%d = %s\n",arg,args[arg]);
-  }
-  strcpy(args[arg+1],"NULL");
+		curr_arg++; //in every case we advance to next arg
+	}
 
-  pid_t taskController = fork();
-  if(taskController == 0){ //TaskController
-    char* arguments[] = {"taskController","ls","|","wc",NULL};
-    //Esecuzione taskController , usare execle || execvpe per passare un ambiente (i.e. per effettuare overide del PATH in cui cercare i comandi da eseguire!)
-    if( execvp("taskController",arguments) == -1){
-      perror("error exec");
-      exit(EXIT_FAILURE);
-    }
-  }
-  else if(taskController > 0){ //Main
-    printf("In parent\n");
-    //Main si metter in attesa che finisca il taskController
-    wait(NULL);
-  }
-  else{ //Errore nel creare il taskController
-    perror("Error executing task Controller\n");
-    exit(EXIT_FAILURE);
-  }
+	printf("outfile: %s\n", stdout_filepath);
+	printf("errfile: %s\n", stderr_filepath);
+	printf("max_len: %i\n", max_len);
+	printf("\n");
 
+	//reading commands expressions from stdin logic
+	char input[CMD_EXP_BUFF_SIZE];
+
+	printf("Shell started.\ntype '/quit' to exit.\n\n");
+
+	do{
+		fflush(stdin); //flushing stream for cleaning the input
+		printf("> "); // prompt
+		fgets(input, CMD_EXP_BUFF_SIZE, stdin); // saves the input in the buffer to be tokenized
+		printf("--> %s", input); //tanto per vedere se funzionava
+
+	} while( strcmp(input, "/quit\n") != 0 ); //anche qua possiamo cambiare stringa/sequenza di escape
+
+	printf("\nExited succesfully.\n");
+	exit(EXIT_SUCCESS);
 
 }
