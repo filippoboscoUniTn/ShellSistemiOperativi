@@ -37,11 +37,36 @@
 //for not defined arguments
 #define ARG_CODE_ERROR -1
 
+//definition of prefixes for saving partial logs
+//temp_pathname/LOG_PATH/cmd_name.txt (i.e. 123/out/ls.txt, 123/err/ls.txt)
+#define OUT_LOG_PATH "out/"
+#define ERR_LOG_PATH "err/"
+#define PINFO_LOG_PATH "proc_info/"
 
+//definition of environment variables
+#define EV_TMP_PATH "temp_pathname"
+#define EV_STDOUTFILE "stdout_filepath"
+#define EV_STDERRFILE "stderr_filepath"
+#define EV_PINFO_OUTFILE "proc_info_filepath"
+#define EV_MAXLEN "max_output_length"
+#define EV_PIPE_IN "pipe_in"
+#define EV_PIPE_OUT "pipe_out"
+
+//pipe macros
+//#define PIPE_STDOUT 0
+//#define PIPE_STDERR 1
+#define READ 0
+#define WRITE 1
+
+#define BUFF_STDOUT 0
+#define BUFF_STDERR 1
+
+//commands name buffer size
+#define CMD_NAME_BUFF_SIZE 32
 //commands expression buffer size
 #define CMD_EXP_BUFF_SIZE 512
 
-
+#define CMD_OUT_BUFF_SIZE 1024
 
 
 
