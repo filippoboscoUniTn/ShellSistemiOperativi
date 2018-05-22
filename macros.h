@@ -41,8 +41,20 @@
 //commands expression buffer size
 #define CMD_EXP_BUFF_SIZE 512
 
+//Pipes' read and write ends
+#define READ 0
+#define WRITE 1
+
+//processIOtable parameters' MACROS
+#define MAX_ARGUMENTS 10 //Numero massimo di argomenti per un comando
+#define MAX_ARG_LEN 10 //Lunghezza massima degli argomenti di un comando
+#define MAX_IN_FILE_LEN 15 //Lunghezza massima della stringa che specifica un file su cui redirigere l'input di un comando
+#define MAX_OUT_FILE_LEN 15 //Lunghezza massima della stringa che specficia un file su cui redirigere l'output di un comando
 
 
+//Boolean TRUE and FALSE definition
+#define TRUE 1
+#define FALSE 0
 
 
 
