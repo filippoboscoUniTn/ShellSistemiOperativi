@@ -272,7 +272,7 @@ int main(int argc, char **argv){
 				//first in the log, then in the out pipe
 				if(readb > 0){
 					writtenb = write(loginfo -> outf, buffer, (size_t)readb); //writes to logfile
-					writtenb = write(loginfo -> pipe_out, buffer, (size_t)readb);//writes to pipe_out
+					writtenb = write(loginfo -> pipe_out, buffer, (size_t)readb); //writes to pipe_out
 				}
 				//debug
 				//sleep(1);
@@ -356,6 +356,10 @@ int main(int argc, char **argv){
 
 
 	//-------------------------------- PROCESS INFO HANDLING start --------------------------------
+	/*
+		if environment variable is defined open the output file
+		for every env var, we check if print it to the outfile
+	*/
 
 	//-------------------------------- PROCESS INFO HANDLING end ----------------------------------
 

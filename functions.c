@@ -20,34 +20,94 @@ argcode_t getcode(char *_arg){
 	if(strcmp(_arg, ARG_STDOUTFILE_SL) == 0){ return ARG_STDOUTFILE_C; }
 	if(strcmp(_arg, ARG_STDERRFILE_SS) == 0){ return ARG_STDERRFILE_C; }
 	if(strcmp(_arg, ARG_STDERRFILE_SL) == 0){ return ARG_STDERRFILE_C; }
+	if(strcmp(_arg, ARG_UNIOUTFILE_SS) == 0){ return ARG_UNIOUTFILE_C; }
+	if(strcmp(_arg, ARG_UNIOUTFILE_SL) == 0){ return ARG_UNIOUTFILE_C; }
+
 	if(strcmp(_arg, ARG_MAXLEN_SS)     == 0){ return ARG_MAXLEN_C; }
 	if(strcmp(_arg, ARG_MAXLEN_SL)     == 0){ return ARG_MAXLEN_C; }
 
+	if(strcmp(_arg, ARG_PROC_INFO_SL)     == 0){ return ARG_PROC_INFO_C; }
+	if(strcmp(_arg, ARG_ERRNO_SL)     == 0){ return ARG_ERRNO_C; }
+	if(strcmp(_arg, ARG_PID_SL)     == 0){ return ARG_PID_C; }
+	if(strcmp(_arg, ARG_UID_SL)     == 0){ return ARG_UID_C; }
+	if(strcmp(_arg, ARG_STATUS_SL)     == 0){ return ARG_STATUS_C; }
+
 	return ARG_CODE_ERROR;
+}
+
+//needed by the shell
+//function to dinamically return arguments environment variables string identifiers
+//matches the argument code with every string identifier
+//returns NULL pointer if the code doesn't match any id
+char* get_envstring(argcode_t _argcode, char *_destination){
+
+	if(_destination != NULL){
+		free(_destination);
+		_destination = NULL;
+	}
+
+	if(_argcode == ARG_STDOUTFILE_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_STDOUTFILE)) );
+		strcpy(_destination, EV_STDOUTFILE);
+	}
+
+	if(_argcode == ARG_STDERRFILE_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_STDERRFILE)) );
+		strcpy(_destination, EV_STDERRFILE);
+	}
+
+	if(_argcode == ARG_UNIOUTFILE_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_UNIOUTFILE)) );
+		strcpy(_destination, EV_UNIOUTFILE);
+	}
+
+	if(_argcode == ARG_MAXLEN_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_MAXLEN)) );
+		strcpy(_destination, EV_MAXLEN);
+	}
+
+	if(_argcode == ARG_PROC_INFO_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_PROC_INFO)) );
+		strcpy(_destination, EV_PROC_INFO);
+	}
+
+	if(_argcode == ARG_ERRNO_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_ERRNO)) );
+		strcpy(_destination, EV_ERRNO);
+	}
+
+	if(_argcode == ARG_PID_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_PID)) );
+		strcpy(_destination, EV_PID);
+	}
+
+	if(_argcode == ARG_UID_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_UID)) );
+		strcpy(_destination, EV_UID);
+	}
+
+	if(_argcode == ARG_STATUS_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_STATUS)) );
+		strcpy(_destination, EV_STATUS);
+	}
+
+	return _destination;
 }
 
 //given an argument code it returns the type associated
 argtype_t gettype(argcode_t _argcode){
 
 	//type string
-	if(_argcode > 0 && _argcode < ARG_MAXLEN_C){
-		return ARG_TYPE_S;
-	}
+	if(_argcode > 0 && _argcode < ARG_MAXLEN_C){ return ARG_TYPE_S; }
 
 	//type int
-	else if(_argcode >= ARG_MAXLEN_C && _argcode < ARG_SWITCH_C){
-		return ARG_TYPE_I;
-	}
+	else if(_argcode >= ARG_MAXLEN_C && _argcode < ARG_PROC_INFO_C){ return ARG_TYPE_I; }
 
 	//type switch
-	else if(_argcode >= ARG_SWITCH_C && _argcode < ARG_GUARD_C){
-		return ARG_TYPE_N;
-	}
+	else if(_argcode >= ARG_PROC_INFO_C && _argcode < ARG_GUARD_C){ return ARG_TYPE_N; }
 
 	//argument type error
-	else{
-		return ARG_TYPE_E;
-	}
+	else{ return ARG_TYPE_E; }
 }
 
 //needed by the shell, controller and logger
@@ -91,6 +151,9 @@ char* my_malloc(int _n){
 	return mem_ref;
 }
 
+//strcpy wrapper
+//copies _source to _destination
+//allocates memory for _destination if not done previously
 char* my_strcpy(char *_source, char *_destination){
 	if(_source == NULL){ return NULL; }
 	if(_destination == NULL){
@@ -102,6 +165,7 @@ char* my_strcpy(char *_source, char *_destination){
 	return _destination;
 }
 
+//initialization function for loginfo_t
 void loginfo_init(loginfo_t *_loginfo){
 
 	_loginfo -> out_pathname = NULL;
@@ -118,6 +182,9 @@ void loginfo_init(loginfo_t *_loginfo){
 	return;
 }
 
+//function for free resources used by the logger
+//it's not sure that every variable has been allocated, so it performs checks
+//it flushes pipes before closing them
 void free_resources(char *_cmd, char ** _args, int _argc, char *_buffer, loginfo_t *_loginfo){
 	//debug
 	//printf("Starting freeing resources..........\n...........\n");
@@ -140,9 +207,9 @@ void free_resources(char *_cmd, char ** _args, int _argc, char *_buffer, loginfo
 	//if(_loginfo -> pipe_in != -1){ close(_loginfo -> pipe_in); }
 	//if(_loginfo -> pipe_out != -1){ close(_loginfo -> pipe_out); }
 
-	if(_loginfo -> outf != -1){ close(_loginfo -> outf); }
-	if(_loginfo -> errf != -1){ close(_loginfo -> errf); }
-	if(_loginfo -> proc_infof != -1){ close(_loginfo -> proc_infof); }
+	if(_loginfo -> outf != -1){ fsync(_loginfo -> outf); close(_loginfo -> outf); }
+	if(_loginfo -> errf != -1){ fsync(_loginfo -> errf); close(_loginfo -> errf); }
+	if(_loginfo -> proc_infof != -1){ fsync(_loginfo -> proc_infof); close(_loginfo -> proc_infof); }
 	if(_loginfo != NULL) { free(_loginfo); }
 
 	//debug
