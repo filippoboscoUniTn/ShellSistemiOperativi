@@ -20,6 +20,10 @@ void catch_args(int argc, char **argv, char **args);
 void link_pipe(int _source, int _destination);
 //allocates space for holding strings
 char* my_malloc(int _n);
+char* my_strcpy(char *_source, char *_destination);
+void loginfo_init(loginfo_t *_loginfo);
+void loginfo_free(loginfo_t *_loginfo);
+void free_resources(char *_cmd, char ** _args, int _argc, char *_buffer, loginfo_t *_loginfo);
 
 
 

@@ -90,3 +90,63 @@ char* my_malloc(int _n){
 	mem_ref = malloc( sizeof(char) * (_n + 1) );
 	return mem_ref;
 }
+
+char* my_strcpy(char *_source, char *_destination){
+	if(_source == NULL){ return NULL; }
+	if(_destination == NULL){
+		_destination = my_malloc(strlen(_source));
+	}
+
+	_destination = strcpy(_destination, _source);
+
+	return _destination;
+}
+
+void loginfo_init(loginfo_t *_loginfo){
+
+	_loginfo -> out_pathname = NULL;
+	_loginfo -> err_pathname = NULL;
+	_loginfo -> proc_info_pathname = NULL;
+	_loginfo -> pipe_in = -1;
+	_loginfo -> pipe_out = -1;
+
+	_loginfo -> outf = -1;
+	_loginfo -> errf = -1;
+	_loginfo -> proc_infof = -1;
+
+
+	return;
+}
+
+void free_resources(char *_cmd, char ** _args, int _argc, char *_buffer, loginfo_t *_loginfo){
+	//debug
+	//printf("Starting freeing resources..........\n...........\n");
+
+	if(_cmd != NULL){
+		free(_cmd);
+	}
+
+	int i;
+	for(i = 0; i < _argc; i++){
+		if(_args[i] != NULL){
+			free(_args[i]);
+		}
+	}
+
+	if(_buffer != NULL){
+		free(_buffer);
+	}
+
+	//if(_loginfo -> pipe_in != -1){ close(_loginfo -> pipe_in); }
+	//if(_loginfo -> pipe_out != -1){ close(_loginfo -> pipe_out); }
+
+	if(_loginfo -> outf != -1){ close(_loginfo -> outf); }
+	if(_loginfo -> errf != -1){ close(_loginfo -> errf); }
+	if(_loginfo -> proc_infof != -1){ close(_loginfo -> proc_infof); }
+	if(_loginfo != NULL) { free(_loginfo); }
+
+	//debug
+	//printf("Resources freed!\n");
+
+	return;
+}

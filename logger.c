@@ -1,6 +1,6 @@
 /*
 	CHANGES:
-	- pensare a cosa deve essere singolarmente passato come parametro e cosa può essere passato come variabile d'ambiente
+
 */
 
 
@@ -29,6 +29,25 @@
 #include "errno.h"
 #include "functions.h"
 
+
+//flag for the logger, it continues to log until this flag it's put FALSE
+volatile sig_atomic_t proc_is_running = TRUE; //put FALSE by the sigchld_handler (when the executed command terminates)
+volatile siginfo_t *pinfo = NULL; //structure where the handler saves process' informations (PID, UID, and so on)
+
+
+//customized SIGCHLD handler
+//it only gives the father a reference to process' informations, unlocks him to free resources and exit
+void sigchld_handler(int signum, siginfo_t *info, void *ucontext){
+	//debug
+	//printf("SIGCHLD handler called.\n");
+
+	proc_is_running = FALSE; //unlocking father
+	pinfo = info; //giving father the reference
+
+	return;
+}
+
+
 //main logic of the logger
 int main(int argc, char **argv){
 
@@ -38,15 +57,40 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 
+	//-------------------------------- SIGCHLD HANDLER REPLACEMENT --------------------------------
+	struct sigaction act; //structure to be passed to the sigaction
+	act.sa_flags = SA_SIGINFO; //tells the sigaction that we want to execute sigaction and not sighandler
+	sigemptyset(&act.sa_mask); //initialize the bitmask
+	act.sa_sigaction = sigchld_handler; //tells the sigaction to execute our handler
+	sigaction(SIGCHLD, &act, NULL); //tells the OS to execute our handler when receiving SIGCHLD
+	//---------------------------------------------------------------------------------------------
+
+
+	//----------------------------------- VARIABLES DEFINITIONS -----------------------------------
+	char *cmd; //command's name to be passed to the exec
 	//allocating argc elements of type char*
 	//argc - 1 for holding all the parameters + 1 for NULL pointer
-	char *args[argc];
-	char *cmd;
+	char *args[argc]; //command's arguments to be passed to the exec
 
-	catch_args(argc, argv, args); //removes the argv[0] for passing it to exec
+	loginfo_t *loginfo; //structure for holding logging informations passed in the environment by the controller
+	int pipes[2]; //buffer pipe
+	char *buffer; //buffer for temporarily holding (a part) of the executed command's stdout
+
+	ssize_t readb, writtenb; //needed for saving return values of read() and write() syscalls
+	//---------------------------------------------------------------------------------------------
+
+
+	//--------------------------------- VARIABLES INITIALIZATIONS ---------------------------------
+	catch_args(argc, argv, args); //removes logger name from argv, putting the result in args, for passing it to exec
 	cmd = my_malloc(strlen(args[0])); //allocating space for command's name
 	strcpy(cmd, args[0]); //catching command's name
 
+	loginfo = malloc(sizeof(loginfo_t)); //allocating memory for the structure
+	loginfo_init(loginfo); //initializing structure
+
+	pipes[READ] = -1; //read end used to read the executed command stdout, log and redirect it
+	pipes[WRITE] = -1; //write end linked to the executed command, this allow us to read and elaborate the output
+	//---------------------------------------------------------------------------------------------
 
 
 	//debug
@@ -59,7 +103,6 @@ int main(int argc, char **argv){
 
 	printf("before strcpy\n");
 	*/
-
 
 
 	//these variables will be put in the environment by the controller
@@ -81,140 +124,144 @@ int main(int argc, char **argv){
 	setenv(EV_PIPE_IN, "0", OVERWRITE);
 	setenv(EV_PIPE_OUT, "1", OVERWRITE);
 
-
-	//these variables are nearly always used
-	//based on the arguments switch, we know if allocate memory or not
-	char *out_pathname = NULL; //stdout partial log file pathname
-	char *err_pathname = NULL; //stderr partial log file pathname
-	char *proc_info_pathname = NULL; //proc_info partial log file pathname
-	int pipe_in = -1; //input pipe read end which has to be linked to stdin of the executed command
-	int pipe_out = -1; //output pipe write end in which the logger redirect stdout of the executed program
-
-	int outf = -1; //stdout partial log file's FD
-	int errf = -1; //stderr partial log file's FD
-	int proc_infof = -1; //proc_info partial log file's FD
-
-	int pipes[2]; //buffer pipe
-	pipes[READ] = -1; //read end used to read the executed command stdout, log and redirect it
-	pipes[WRITE] = -1; //write end linked to the executed command, this allow us to read and elaborate the output
-	char *buffer; //buffer for temporarily holding (a part) of the executed command stdout
-
 	//debug
 	//printf("before getenvs and atois\n");
 
-	//here we catch all environment variables needed
-	//then we also know what to do
-	pipe_in = atoi(getenv(EV_PIPE_IN));
-	pipe_out = atoi(getenv(EV_PIPE_OUT));
 
-	out_pathname = getenv(EV_STDOUTFILE);
-	err_pathname = getenv(EV_STDERRFILE);
-	proc_info_pathname = getenv(EV_PINFO_OUTFILE);
+
+	//------------------------------ ENVIRONMENT VARIABLES CATCHING -------------------------------
+	//here we catch all the logging informations passed by the controller
+	//given these, we know where and what to log
+
+	loginfo -> out_pathname = getenv(EV_STDOUTFILE);
+	loginfo -> err_pathname = getenv(EV_STDERRFILE);
+	loginfo -> proc_info_pathname = getenv(EV_PINFO_OUTFILE);
+
+	loginfo -> pipe_in = atoi(getenv(EV_PIPE_IN));
+	loginfo -> pipe_out = atoi(getenv(EV_PIPE_OUT));
+	//---------------------------------------------------------------------------------------------
+
 
 
 	//debug
 	/*
 	printf("after getenvs and atois\n");
 
-	printf("outf_pathname --> %s\n", out_pathname);
-	printf("errf_pathname --> %s\n", err_pathname);
-	printf("proc_infof_pathname --> %s\n", proc_info_pathname);
-	printf("pipe_in --> %i\n", pipe_in);
-	printf("pipe_out --> %i\n", pipe_out);
+	printf("outf_pathname --> %s\n", loginfo -> out_pathname);
+	printf("errf_pathname --> %s\n", loginfo -> err_pathname);
+	printf("proc_infof_pathname --> %s\n", loginfo -> proc_info_pathname);
+	printf("pipe_in --> %i\n", loginfo -> pipe_in);
+	printf("pipe_out --> %i\n", loginfo -> pipe_out);
 	*/
 
 
+
+
+	//------------------------------------- LOGGER LOGIC start ------------------------------------
+	//based on the environment variables (if they are present or not)
+	//we know the filepath(s) of the log files, pipes's file descriptors and process informations switch
+
+	//----------------------------------- STDERR HANDLING start -----------------------------------
 	//if we don't have to log the stderr, we don't redirect anything
 	//instead, if we have to log it, we redirect the executed command's stderr to the log's file descriptor
-	if(err_pathname != NULL){
-		//opens stderr partial log file's FD
-		errf = open(err_pathname, O_WRONLY | O_CREAT, 0755);
+	if(loginfo -> err_pathname != NULL){
+		loginfo -> errf = open(loginfo -> err_pathname, O_WRONLY | O_CREAT, 0755); //opens stderr partial log file's FD
 
 		//debug
 		//printf("after opening the errfile errf --> %i\n", errf);
 
-		//links the executed command stderr to the logfile's FD
-		link_pipe(STDERR_FILENO, errf);
+		link_pipe(STDERR_FILENO, loginfo -> errf); //links the executed command stderr to the logfile's FD
 	}
+	//----------------------------------- STDERR HANDLING end -------------------------------------
 
+
+	//----------------------------------- STDOUT HANDLING start -----------------------------------
 	//if we don't have to save the output we just redirect stdout to pipe_out
-	if(out_pathname == NULL){
-
+	//if we don't have to log the stdout, we just redirect it to the output pipe
+	if(loginfo -> out_pathname == NULL){
 		//debug
 		//printf("linked stdout to pipe_out\n");
 
-		//links the executed command stdout to pipe_out
-		link_pipe(STDOUT_FILENO, pipe_out);
+		link_pipe(STDOUT_FILENO, loginfo -> pipe_out); //links the executed command stdout to pipe_out
 	}
 
 	//if we have to log the stdout
 	//we redirect the stdout to the pipe
 	//allocate the buffer
 	//and open the file stream to the log file
-	if(out_pathname != NULL){
-
+	if(loginfo -> out_pathname != NULL){
 		//debug
 		//printf("before stdout buffer allocation\n");
 
+		//---------- ERROR CREATING PIPE ----------
 		//if error creating pipe exits
 		if(pipe(pipes) == -1){
-
 			//debug
 			//fprintf(stdout, "cannot create pipe\n");
+
+			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}
 
-		//allocating space for buffer
-		buffer = my_malloc( CMD_OUT_BUFF_SIZE );
+
+		//---------- ERROR ALLOCATING BUFFER ----------
+		buffer = my_malloc( CMD_OUT_BUFF_SIZE ); //allocating space for buffer
 		//if error allocating memory exits
 		if(buffer == NULL){
-
 			//debug
 			//fprintf(stdout, "cannot allocate output buffer\n");
+
+			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}
 
-		//opens stdout partial log file's FD
-		outf = open(out_pathname, O_WRONLY | O_CREAT, 0755);
+
+		//---------- ERROR OPENING STDOUT OUTPUT FILE ----------
+		loginfo -> outf = open(loginfo -> out_pathname, O_WRONLY | O_CREAT, 0755); //opens stdout partial log file's FD
 		//if error opening log file exits
-		if(outf == -1){
-
+		if(loginfo -> outf == -1){
 			//debug
-			//fprintf(stdout, "cannot create %s\n", out_pathname);
+			printf("cannot create %s\n", loginfo -> out_pathname);
 
+			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}
+
+
+
 
 		//debug
 		//fprintf(stdout, "after stdout buffer allocation\n");
 
-		ssize_t readb, writtenb;
 
 		//debug
 		/*
 		printf("linking stdout (%i) to pipes[WRITE](%i)\n", STDOUT_FILENO, pipes[WRITE]);
 		printf("the father will read from pipes[READ] (%i) putting in buffer\n", pipes[READ]);
-		printf("will write to outf (%i) from buffer\n", outf);
-		printf("then will write to pipe out (%i) from buffer\n", pipe_out);
+		printf("will write to outf (%i) from buffer\n", loginfo -> outf);
+		printf("then will write to pipe out (%i) from buffer\n", loginfo -> pipe_out);
 		*/
 
-		//forking
+
+
+
+		//---------- FORK ----------
 		//child has to link pipes and execute the command
 		//father has to log the output
-		pid_t pid = fork();
+		pid_t pid = fork(); //pid needed for separing father-child logics
 
-		//father
+		//---------- FATHER ----------
+		//it has to log the output
 		if(pid > 0){
-
 			close(pipes[WRITE]); //doesn't need to write to this pipe
 
 			//debug
 			//char str[128];
 			//int err;
 
-			int c;
-			for( c = 0; c < 10; c++ ){
-				readb = read(pipes[READ], buffer, CMD_OUT_BUFF_SIZE);
+			//while the child process is running, the father will read from pipe and log the output
+			while( proc_is_running ){
+				readb = read(pipes[READ], buffer, CMD_OUT_BUFF_SIZE); //reading the command's stdout from pipe
 
 				//debug
 				//err = errno;
@@ -222,41 +269,105 @@ int main(int argc, char **argv){
 				//write(outf, str, 128);
 
 				//if we have read some bytes we write those bytes
+				//first in the log, then in the out pipe
 				if(readb > 0){
-
-					//writes to logfile
-					writtenb = write(outf, buffer, (size_t)readb);
-					//writes to pipe_out
-					writtenb = write(pipe_out, buffer, (size_t)readb);
+					writtenb = write(loginfo -> outf, buffer, (size_t)readb); //writes to logfile
+					writtenb = write(loginfo -> pipe_out, buffer, (size_t)readb);//writes to pipe_out
 				}
 				//debug
 				//sleep(1);
-
 			}
+
+
+
+
+
+			//debug
+			//printf("Child has terminated.\nNow i'll free resources.\n");
+			//printf("pointer: %p\n", loginfo);
+			//printf("field: %s\n", loginfo -> out_pathname);
+			//printf("cmd: %s\n", cmd);
+
+			//loginfo_free(loginfo);
+
+
+			//if(loginfo -> pipe_in != -1){ close(loginfo -> pipe_in); }
+			//if(loginfo -> pipe_out != -1){ close(loginfo -> pipe_out); }
+
+			//if(loginfo -> outf != -1){ close(loginfo -> outf); }
+			//if(loginfo -> errf != -1){ close(loginfo -> errf); }
+			//if(loginfo -> proc_infof != -1){ close(loginfo -> proc_infof); }
+
+
+
+
+
+			//if we are here means that the child finished, and it's possible that he wrote some bytes before finishing and after our last read
+			//so we continue to read until the pipe it's empty
+			while((readb = read(pipes[READ], buffer, CMD_OUT_BUFF_SIZE)) > 0){//reading the command's stdout from pipe
+				writtenb = write(loginfo -> outf, buffer, (size_t)readb); //writes to logfile
+				writtenb = write(loginfo -> pipe_out, buffer, (size_t)readb);//writes to pipe_out
+			}
+
+
+
+
+
+			/*
+			free(loginfo);
+			free(cmd);
+			free(buffer);
+
+			//if(loginfo -> proc_info_pathname != NULL){ free(loginfo -> proc_info_pathname); }
+
+			int i;
+			for(i = 0; i < argc; i++){
+				if(args[i] != NULL){ free(args[i]); }
+			}
+			*/
+
+			//printf("\n\nRESOURCES FREED.\n");
 		}
 
-		//child
+		//---------- CHILD ----------
 		else if(pid == 0){
 
 			close(pipes[READ]); //doesn't need to read from this pipe
-			link_pipe(STDIN_FILENO, pipe_in); //links stdin to the pipe_it before calling exec
+			link_pipe(STDIN_FILENO, loginfo -> pipe_in); //links stdin to the pipe_it before calling exec
 			link_pipe(STDOUT_FILENO, pipes[WRITE]); //links stdout to the buffer pipe before calling exec
 
 			execvp(cmd, args); //executes the command with given parameters
+
 			//debug
 			//printf("exec failed\n");
+
+			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}
 
-		//if error forking exits
+		//---------- ERROR FORKING ----------
 		else{
+			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}
 
 	}
+	//----------------------------------- STDOUT HANDLING end -------------------------------------
+
+
+	//-------------------------------- PROCESS INFO HANDLING start --------------------------------
+
+	//-------------------------------- PROCESS INFO HANDLING end ----------------------------------
 
 
 
 
+
+
+	//-------------------------------------- LOGGER LOGIC end -------------------------------------
+
+	//if we are here means that the command has finished and the logger too, so we free used resources
+	if(pipes[READ] != -1){ close(pipes[READ]); }
+	free_resources(cmd, args, argc, buffer, loginfo);
 	exit(EXIT_SUCCESS);
 }
