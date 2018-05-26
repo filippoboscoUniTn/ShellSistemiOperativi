@@ -19,6 +19,22 @@ typedef struct{
 	void *arg_value; //based on the argcode, this will be allocated for an int, char* or whatever
 } arg_t;
 
+typedef struct{
+	//these variables are nearly always used
+	//based on the arguments switch, we know if allocate memory or not
+	char *out_pathname; //stdout partial log file pathname
+	char *err_pathname; //stderr partial log file pathname
+	char *proc_info_pathname; //proc_info partial log file pathname
+	int pipe_in; //input pipe read end which has to be linked to stdin of the executed command
+	int pipe_out; //output pipe write end in which the logger redirect stdout of the executed program
+
+	int outf; //stdout partial log file's FD
+	int errf; //stderr partial log file's FD
+	int proc_infof; //proc_info partial log file's FD
+
+}loginfo_t;
+
+
 //tokentType definition
 typedef int tokenType_t;
 
@@ -58,29 +74,10 @@ typedef struct processTable_t{
 
 typedef struct processesList_t{
 	struct processTable_t *table;
-
 	struct processesList_t *next;
 	struct processesList_t *prev;
 
 }processesList_t;
-
-// typedef struct token_told{
-//   char type[10];
-//   char value[50];
-// }token_told;
-
-// //Process Table type definition
-// typedef struct processIOtable_t{
-//   char command [CMD_EXP_BUFF_SIZE];
-//   char options [MAX_ARGUMENTS][MAX_ARG_LEN];
-// 	int nOptions;
-// 	char logFilePath [LOG_FILE_NAME_LEN];
-//   int inputPipe;
-//   int outputPipe;
-//   char inputFile[MAX_IN_FILE_LEN];
-//   char outputFile[MAX_OUT_FILE_LEN];
-// 	bool skipNextCommand;
-// }processIOtable_t;
 
 //Pids List type definition
 typedef struct pidsList_t{
@@ -95,14 +92,5 @@ typedef struct pipesList_t{
   struct pipesList_t *next;
   struct pipesList_t *prev;
 }pipesList_t;
-
-
-// //Processes Tables' List definition
-// typedef struct processesList_t{
-//   struct processIOtable_t *processTable;
-//   struct processesList_t *next;
-//   struct processesList_t *prev;
-// }processesList_t;
-
 
 #endif
