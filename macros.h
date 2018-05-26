@@ -37,7 +37,6 @@
 //for not defined arguments
 #define ARG_CODE_ERROR -1
 
-
 //commands expression buffer size
 #define CMD_EXP_BUFF_SIZE 512
 
@@ -45,16 +44,40 @@
 #define READ 0
 #define WRITE 1
 
-//processIOtable parameters' MACROS
-#define MAX_ARGUMENTS 10 //Numero massimo di argomenti per un comando
-#define MAX_ARG_LEN 10 //Lunghezza massima degli argomenti di un comando
-#define MAX_IN_FILE_LEN 15 //Lunghezza massima della stringa che specifica un file su cui redirigere l'input di un comando
-#define MAX_OUT_FILE_LEN 15 //Lunghezza massima della stringa che specficia un file su cui redirigere l'output di un comando
-
-
 //Boolean TRUE and FALSE definition
 #define TRUE 1
 #define FALSE 0
+
+//processIOtable parameters' MACROS
+#define MAX_ARGUMENTS 32 //Numero massimo di argomenti per un comando
+#define MAX_ARG_LEN 128 //Lunghezza massima degli argomenti di un comando
+#define MAX_FILE_NAME_LEN 32 //Lunghezza massima della stringa che specifica un file su cui redirigere l'input di un comando
+#define MAX_CMD_LEN 32
+
+//Tokens MACROS
+
+//Types
+#define OPERATOR 100
+#define COMMAND 200
+#define OPTION 300
+#define FILE 400
+
+//Values
+#define PIPE 0
+#define AND 1
+#define OR 2
+#define IN_REDIRECT 3
+#define OUT_REDIRECT 4
+
+//Wrapper functions ERROR definition
+#define ERR_PIPE 1
+#define ERR_MKSTEMP 2
+#define ERR_SETENV 3
+#define ERR_SETENV_I 4
+#define ERR_WAIT 5
+#define ERR_OPEN 6
+
+
 
 
 
