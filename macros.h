@@ -85,7 +85,10 @@
 //definition of environment variables
 //needed for setting and getting environment variables (controller and logger)
 //for file pathnames and various switches from the shell
-#define EV_UNIOUTFILE "unique_output_filepath"
+
+#define EV_SHELL_STDOUTFILE "shell_stdoutfile"
+#define EV_SHELL_STDERRFILE "shell_stderrfile"
+#define EV_SHELL_UNIOUTFILE "shell_unioutfile"
 #define EV_STDOUTFILE "stdout_filepath"
 #define EV_STDERRFILE "stderr_filepath"
 #define EV_PINFO_OUTFILE "proc_info_filepath" //used internally

@@ -48,18 +48,18 @@ char* get_envstring(argcode_t _argcode, char *_destination){
 	}
 
 	if(_argcode == ARG_STDOUTFILE_C){
-		_destination = malloc( sizeof(char) * (strlen(EV_STDOUTFILE)) );
-		strcpy(_destination, EV_STDOUTFILE);
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_STDOUTFILE)) );
+		strcpy(_destination, EV_SHELL_STDOUTFILE);
 	}
 
 	if(_argcode == ARG_STDERRFILE_C){
-		_destination = malloc( sizeof(char) * (strlen(EV_STDERRFILE)) );
-		strcpy(_destination, EV_STDERRFILE);
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_STDERRFILE)) );
+		strcpy(_destination, EV_SHELL_STDERRFILE);
 	}
 
 	if(_argcode == ARG_UNIOUTFILE_C){
-		_destination = malloc( sizeof(char) * (strlen(EV_UNIOUTFILE)) );
-		strcpy(_destination, EV_UNIOUTFILE);
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_UNIOUTFILE)) );
+		strcpy(_destination, EV_SHELL_UNIOUTFILE);
 	}
 
 	if(_argcode == ARG_PATH_C){
