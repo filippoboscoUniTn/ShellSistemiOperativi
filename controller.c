@@ -21,227 +21,26 @@
         Once every logger child has completed the controller will perform clean-up and return relevant information to the shells
 
 */
-
-
 #include "std_libraries.h"
 #include "macros.h"
 #include "types.h"
 #include "functions.h"
 
-bool isOperator(char* inputString,token_t*tokenTmp){
-  printf("strlen(inputString) == %ld\n",strlen(inputString));
-  printf("in isOperator, inputString = %s\n",inputString);
-  printf("strcmp(inputString,'|') == 0 -> %d\n", strcmp(inputString,"|") == 0);
-  printf("inputString[0] == '|' -> %d\n", (inputString[0] == '|') );
-  printf("inputString[1] == zero -> %d\n",inputString[0] == '\0');
-  bool retVal = FALSE;
-    if(inputString[0] == '|' && inputString[1] == '\0'){
-      printf("matched as PIPE\n");
-      retVal = TRUE;
-      tokenTmp -> type = OPERATOR;
-      tokenTmp -> value = malloc(sizeof(int));
-      *(int*)(tokenTmp->value) = PIPE;
-      tokenTmp -> value = PIPE;
-    }
-    else if(strcmp(inputString,"|") == 0){
-      printf("matched PIPE\n");
-      retVal = TRUE;
-      tokenTmp -> type = OPERATOR;
-      tokenTmp -> value = malloc(sizeof(int));
-      *(int*)(tokenTmp->value) = PIPE;
-      tokenTmp -> value = PIPE;
-
-    }
-    else if(strcmp(inputString,"&&") == 0){
-      retVal = TRUE;
-      tokenTmp -> type = OPERATOR;
-      tokenTmp -> value = malloc(sizeof(int));
-      *(int*)(tokenTmp->value) = AND;
-    }
-    else if(strcmp(inputString,"||") == 0){
-      retVal = TRUE;
-      tokenTmp -> type = OPERATOR;
-      tokenTmp -> value = malloc(sizeof(int));
-      *(int*)(tokenTmp->value) = OR;
-    }
-    else if(strcmp(inputString,"<") == 0){
-      retVal = TRUE;
-      tokenTmp -> type = OPERATOR;
-      tokenTmp -> value = malloc(sizeof(int));
-      *(int*)(tokenTmp->value) = IN_REDIRECT;
-    }
-    else if(strcmp(inputString,">") == 0){
-      retVal = TRUE;
-      tokenTmp -> type = OPERATOR;
-      tokenTmp -> value = malloc(sizeof(int));
-      *(int*)(tokenTmp->value) = OUT_REDIRECT;
-    }
-
-
-  return retVal;
-}
-
-token_t ** tokenize(char *rawInput){
-
-  token_t * tokenArray[MAX_CMD_LEN];
-  char words[MAX_CMD_LEN][MAX_CMD_LEN];
-  int wordCounter = 0;
-  int charPointer = 0;
-  int nTokens = 0;
-  int subStringPointer = 0;
-  char subString[MAX_ARG_LEN];
-  char currentCharacter[2];
-
-  currentCharacter[0] = rawInput[charPointer];
-  currentCharacter[1] = '\0';
-  //Flag che specifica se l'ultimo token incontrato era :
-  bool command = FALSE; //Un comando
-  bool redirect = FALSE; //Un operatore di redirezione (i.e. <,>)
-  bool operator = FALSE; //Un operatore (i.e. |,||,&&)
-
-  //Itera fino a fine input
-  while( (charPointer < MAX_CMD_LEN) && (strcmp(currentCharacter,"\0")!= 0) ){
-    //Itera fino ad uno spazio o fine input o EOF
-    while( (charPointer<MAX_CMD_LEN) && (strcmp(currentCharacter," ")!= 0) && (strcmp(currentCharacter,"\0")!= 0) ){
-      subString[subStringPointer] = currentCharacter[0];
-      subStringPointer++;
-      charPointer++;
-      printf("\tcurrentCharacter[0] = %c\n",  currentCharacter[0] );
-      currentCharacter[0] = rawInput[charPointer];
-    }
-    //Salta lo spazio
-    charPointer ++;
-    currentCharacter[0] = rawInput[charPointer];
-    printf("subString recognized : %s\n",subString);
-    printf("strlen(subString) = %ld\n",strlen(subString));
-    strcpy(words[wordCounter],subString);
-    strcat(words[wordCounter],"\0");
-    printf("strcmp words[wordCounter+1] and zero -> %d\n",strcmp(words[wordCounter],"\0"));
-    //printf("strcmp words[wordCounter+1] and zero -> %d\n",strcmp(words[wordCounter],'\0'));
-
-
-    strcpy(subString,"");
-    subStringPointer = 0;
-
-    //Aggiornamento variabili di ciclo
-    printf("words[wordCounter] = %s\n",words[wordCounter]);
-    //Incontrato uno spazio -> riconosciuta una parola
-    token_t * tokenTmp = malloc(sizeof(token_t));
-    printf("goin to match : words[%d] = %s\n",wordCounter,words[wordCounter]);
-    bool isOp = isOperator(words[wordCounter],tokenTmp);
-    //Controllo se è un operatore
-    if(isOp){
-      if(operator){
-        printf("Error : 2 consecutive operators found\n");
-        exit(EXIT_FAILURE);
-      }
-      else if(redirect){
-        printf("Errore : necessario il nome di un file dopo un operatore di redirezione\n");
-        exit(EXIT_FAILURE);
-      }
-      else{
-        tokenArray[nTokens] = tokenTmp;
-        nTokens++;
-        operator = TRUE;
-        command = FALSE;
-        redirect = FALSE;
-      }
-    }
-    //NOn è un operatore
-    else{
-      //L'ultimo token era un operatore di redirezione -> sto leggendo un token FILE
-      if(redirect){
-        //Match as fileName
-        printf("matching token as file name\n\n");
-        tokenTmp -> type = FILE;
-        tokenTmp -> value = malloc(MAX_FILE_NAME_LEN*sizeof(char));
-        strcpy((tokenTmp -> value),words[wordCounter]);
-        tokenArray[nTokens] = tokenTmp;
-        nTokens++;
-        redirect = TRUE;
-        command = FALSE;
-        operator = FALSE;
-      }
-      //L'ultimo token era un comando -> sto leggendo un opzione
-      else if(command){
-        printf("matching token as option\n\n");
-        //Match as option
-        tokenTmp -> type = OPTION;
-        tokenTmp -> value = malloc(MAX_FILE_NAME_LEN*sizeof(char));
-        strcpy((tokenTmp -> value),words[wordCounter]);
-        tokenArray[nTokens] = tokenTmp;
-        nTokens++;
-        command = TRUE;
-        operator = FALSE;
-        redirect = FALSE;
-      }
-      else{
-        //Match as command
-        printf("matching token as command\n\n");
-        tokenTmp -> type = COMMAND;
-        tokenTmp -> value = malloc(MAX_FILE_NAME_LEN*sizeof(char));
-        strcpy((tokenTmp -> value),words[wordCounter]);
-        tokenArray[nTokens] = tokenTmp;
-        nTokens++;
-        command = TRUE;
-        operator = FALSE;
-        redirect = FALSE;
-      }
-    }
-    wordCounter ++;
-  }
-
-
-  //Stampa parole riconosciute
-  int i;
-  for(i=0;i<wordCounter;i++){
-    printf("words[%d] = %s\n",i,words[i]);
-  }
-
-  exit(EXIT_FAILURE);
-  //Finito di leggere un token provo a matcharlo
-  token_t * tokenTmp = malloc(sizeof(token_t));
-  if(isOperator(subString,tokenTmp)){
-    printf("token recognized\n");
-  }
-  return tokenArray;
-}
-
-
-
 
 //argv[0] always eq "controller"
 //argv[1] string containing controller's input
 int main(int argc,char **argv){
+  printf("argv[1] = %s\n",argv[1]);
   char rawInput[MAX_CMD_LEN];
   strcpy(rawInput,argv[1]);
-  token_t **inputTokensTmp = tokenize(rawInput);
-  exit(EXIT_SUCCESS);
-  //Example INPUT
-  token_t token_0;
-    token_0.type = COMMAND;
-    token_0.value = malloc(MAX_CMD_LEN*sizeof(char));
-    strcpy(token_0.value,"ls");
-  token_t token_1;
-    token_1.type = OPTION;
-    token_1.value = malloc(MAX_CMD_LEN*sizeof(char));
-    strcpy(token_1.value,"-l");
-  token_t token_2;
-    token_2.type = OPTION;
-    token_2.value = malloc(MAX_CMD_LEN*sizeof(char));
-    strcpy(token_2.value,"-o");
-  token_t token_3;
-    token_3.type = OPERATOR;
-    token_3.value = malloc(sizeof(int));
-    token_3.value = PIPE;
-  token_t token_4;
-    token_4.type = COMMAND;
-    token_4.value = malloc(MAX_CMD_LEN*sizeof(char));
-    strcpy(token_4.value,"wc");
-
-
-  int nTokens = 5;
-  token_t inputTokens [] = {token_0,token_1,token_2,token_3,token_4};
+  int nTokens = 0;
+  token_t **inputTokens = tokenize(rawInput,&nTokens);
+  /*DEBUG PRINT TOKENS RECIVED FROM TOKENIZE*/
+  int i = 0;
+  while(inputTokens[i] != NULL){
+    printToken(inputTokens[i]);
+    i++;
+  }
 
   //Puntatore al token in analisi
   token_t *currentToken;
@@ -271,14 +70,14 @@ int main(int argc,char **argv){
 
   while( (currentPointer < nTokens) && !error ){
     //Leggo un token
-    currentToken = &inputTokens[currentPointer];
+    currentToken = inputTokens[currentPointer];
     //Controllo sul TIPO di token
     switch(currentToken->type){
 
       case COMMAND :
 
         printf("token : <%d,%s> riconosciuto come COMANDO\n",currentToken->type,(char*)currentToken->value);
-        if(strcmp(currentProcessTable->command,"") != 0)  { exit(EXIT_FAILURE);}
+        if(strcmp(currentProcessTable->command,"") != 0)  { exit_w(ERR_CMD_EXSTS);}
         strcpy(currentProcessTable->command,currentToken->value);
         char tmpName[MAX_CMD_LEN];
 
@@ -307,8 +106,8 @@ int main(int argc,char **argv){
       case OPTION :
 
         printf("token : <%d,%s> riconosciuto come OPZIONE\n",currentToken->type,(char*)currentToken->value);
-        if(currentProcessTable->nOptions > MAX_ARGUMENTS) {  exit(EXIT_FAILURE); }
-        if( strcmp(currentProcessTable->options[currentProcessTable->nOptions],"") != 0)  { exit(EXIT_FAILURE); }
+        if(currentProcessTable->nOptions > MAX_ARGUMENTS) {  exit_w(ERR_MAX_ARGS); }
+        if( strcmp(currentProcessTable->options[currentProcessTable->nOptions],"") != 0)  { exit_w(ERR_OPT_EXSTS); }
         strcpy(currentProcessTable->options[currentProcessTable->nOptions],currentToken->value);
         currentProcessTable->nOptions += 1;
         break;
@@ -316,14 +115,14 @@ int main(int argc,char **argv){
       case OPERATOR :
 
         printf("token : <%d,%ld> riconosciuto come OPERATORE\n",currentToken->type,(long)currentToken->value);
-        switch((long)currentToken->value){
+        switch(*((int*)(currentToken -> value))){
 
           case IN_REDIRECT:{
 
             printf("operatore riconosciuto come IN_REDIRECT\n");
             int nextPointer = currentPointer +1;
-            token_t *fileToken = &inputTokens[nextPointer];
-            if(fileToken->type != FILE){exit(EXIT_FAILURE);}
+            token_t *fileToken = inputTokens[nextPointer];
+            if(fileToken->type != FILE){exit_w(ERR_FILE_XPCTD);}
             strcpy(currentProcessTable->inputFile,fileToken->value);
             currentProcessTable->inputPipe = open_w(currentProcessTable->inputFile);
             currentPointer += 1;
@@ -335,8 +134,8 @@ int main(int argc,char **argv){
 
             printf("operatore riconosciuto come OUT_REDIRECT\n");
             int nextPointer = currentPointer +1;
-            token_t *fileToken = &inputTokens[nextPointer];
-            if(fileToken->type != FILE){exit(EXIT_FAILURE);}
+            token_t *fileToken = inputTokens[nextPointer];
+            if(fileToken->type != FILE){exit_w(ERR_FILE_XPCTD);}
             strcpy(currentProcessTable->outRedirectFile,fileToken->value);
             currentProcessTable->outRedirectFD = open_w(currentProcessTable->outRedirectFile);
             currentPointer += 1;
@@ -380,11 +179,11 @@ int main(int argc,char **argv){
                 setenv_wi("inputPipe",currentProcessTable->inputPipe);
                 setenv_wi("outputPipe",currentProcessTable->outputPipe);
                 execv("logger",exec_argv);
-                exit(EXIT_FAILURE);
+                exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){}
               else{
-                exit(EXIT_FAILURE);
+                exit_w(ERR_FORK_FAIL);
               }
             }
             processesList_t *newTable = malloc(sizeof(processesList_t));
@@ -427,7 +226,7 @@ int main(int argc,char **argv){
                 setenv_wi("inputPipe",currentProcessTable->inputPipe);
                 setenv_wi("outputPipe",currentProcessTable->outputPipe);
                 execv("logger",exec_argv);
-                exit(EXIT_FAILURE);
+                exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
                 int wstatus;
@@ -440,7 +239,7 @@ int main(int argc,char **argv){
                 }
               }
               else{
-                exit(EXIT_FAILURE);
+                exit_w(ERR_FORK_FAIL);
               }
             }
             else if(currentProcessTable->skip == TRUE){
@@ -486,7 +285,7 @@ int main(int argc,char **argv){
                 setenv_wi("inputPipe",currentProcessTable->inputPipe);
                 setenv_wi("outputPipe",currentProcessTable->outputPipe);
                 execv("logger",exec_argv);
-                exit(EXIT_FAILURE);
+                exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
                 int wstatus;
@@ -499,7 +298,7 @@ int main(int argc,char **argv){
                 }
               }
               else{
-                exit(EXIT_FAILURE);
+                exit_w(ERR_FORK_FAIL);
               }
             }
             else if(currentProcessTable->skip == TRUE){
@@ -556,11 +355,11 @@ int main(int argc,char **argv){
           setenv_wi("inputPipe",currentProcessTable->inputPipe);
           setenv_wi("outputPipe",currentProcessTable->outputPipe);
           execv("logger",exec_argv);
-          exit(EXIT_FAILURE);
+          exit_w(ERR_EXEC_FAIL);
         }
         else if(currentProcessTable->pid > 0){}
         else{
-          exit(EXIT_FAILURE);
+          exit_w(ERR_FORK_FAIL);
         }
       }
       processesList_t *newTable = malloc(sizeof(processesList_t));

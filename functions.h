@@ -33,6 +33,7 @@ void printError(int);
 char * getErrorMessage(int);
 
 
+void exit_w(int);
 void pipe_w(int *);
 void setenv_w(char * ,char *);
 void setenv_wi(char * ,int);
@@ -41,6 +42,9 @@ int mkstemp_w(char *);
 int open_w(char *);
 
 
+void printToken(token_t*);
+bool isOperator(char*, token_t*);
+token_t **tokenize(char *,int*);
 void copyTable(processTable_t *,processTable_t *);
 void clearTable(processTable_t *);
 void pushToPipesList(pipesList_t **, pipesList_t **, pipesList_t *);

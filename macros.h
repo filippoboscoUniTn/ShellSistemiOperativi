@@ -82,16 +82,18 @@
 #define EV_STDERRFILE "stderr_filepath"
 #define EV_PINFO_OUTFILE "proc_info_filepath" //used internally
 #define EV_MAXLEN "max_output_length"
+
+
 #define EV_PIPE_IN "pipe_in" //used internally
 #define EV_PIPE_OUT "pipe_out" //used internally
 #define EV_PROC_INFO "process_info"
+
+
 #define EV_ERRNO "errno"
 #define EV_PID "pid"
 #define EV_UID "uid"
 #define EV_STATUS "status"
 
-#define EV_TRUE "TRUE\0"
-#define EV_FALSE "FALSE\0"
 
 //needed when doing setenv()
 #define KEEP 0 //tells setenv() to don't overwrite the variable if present
@@ -134,7 +136,7 @@
 #define IN_REDIRECT 3
 #define OUT_REDIRECT 4
 
-//Wrapper functions ERROR definition
+//Wrapper functions ERRORS definition
 #define ERR_PIPE 1
 #define ERR_MKSTEMP 2
 #define ERR_SETENV 3
@@ -142,6 +144,15 @@
 #define ERR_WAIT 5
 #define ERR_OPEN 6
 
+//Controller's ERRORS definition
+#define ERR_CMD_EXSTS 7
+#define ERR_MAX_ARGS 8
+#define ERR_OPT_EXSTS 9
+#define ERR_FILE_XPCTD 10
+#define ERR_EXEC_FAIL 11
+#define ERR_FORK_FAIL 12
+#define ERR_SYNTAX_OPERATORS 13
+#define ERR_SYNTAX_UNKNOWN 14
 
 
 #endif
