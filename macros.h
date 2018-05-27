@@ -3,8 +3,9 @@
 #define MACROS__H_
 
 
-#define FALSE 0
+//Boolean TRUE and FALSE definition
 #define TRUE 1
+#define FALSE 0
 
 
 //----------------------------------------------- ARGUMENTS CODE DEFINITION -----------------------------------------------
@@ -35,6 +36,14 @@
 #define ARG_UNIOUTFILE_C 30
 #define ARG_UNIOUTFILE_SS "-o\0"
 #define ARG_UNIOUTFILE_SL "--output\0"
+#define ARG_PATH_C 40
+#define ARG_PATH_SS "-p\0"
+#define ARG_PATH_SL "--path\0"
+
+//help argument definition
+//doesn't have a code because it's supported only as first argument
+#define ARG_HELP_SS "-h\0"
+#define ARG_HELP_SL "--help\0"
 
 //------ INT TYPE ------
 //1000 < code < 2000
@@ -77,22 +86,25 @@
 //definition of environment variables
 //needed for setting and getting environment variables (controller and logger)
 //for file pathnames and various switches from the shell
-#define EV_UNIOUTFILE "unique_output_filepath"
+
+#define EV_SHELL_STDOUTFILE "shell_stdoutfile"
+#define EV_SHELL_STDERRFILE "shell_stderrfile"
+#define EV_SHELL_UNIOUTFILE "shell_unioutfile"
 #define EV_STDOUTFILE "stdout_filepath"
 #define EV_STDERRFILE "stderr_filepath"
 #define EV_PINFO_OUTFILE "proc_info_filepath" //used internally
+#define EV_PATH "PATH"
 #define EV_MAXLEN "max_output_length"
-
-
 #define EV_PIPE_IN "pipe_in" //used internally
 #define EV_PIPE_OUT "pipe_out" //used internally
 #define EV_PROC_INFO "process_info"
-
-
 #define EV_ERRNO "errno"
 #define EV_PID "pid"
 #define EV_UID "uid"
 #define EV_STATUS "status"
+
+#define EV_TRUE "TRUE\0"
+#define EV_FALSE "FALSE\0"
 
 
 //needed when doing setenv()
@@ -103,7 +115,6 @@
 #define READ 0 //pipe's read end always the first int passed
 #define WRITE 1 //pipe's write end always the second int passed
 
-
 #define CMD_NAME_BUFF_SIZE 32 //commands name buffer size
 #define CMD_EXP_BUFF_SIZE 512 //commands expression buffer size
 
@@ -111,31 +122,39 @@
 #define CMD_OUT_BUFF_SIZE 1024 //command output buffer size
 
 
-//Boolean TRUE and FALSE definition
-#define TRUE 1
-#define FALSE 0
+//---------------------- EXEC IMAGES MACROS -------------------------
+#define CONTROLLER_EXEC "controller"
+#define LOGGER_EXEC "logger"
+//---------------------- EXEC IMAGES MACROS -------------------------
+//---------------------------- END ----------------------------------
 
-//processIOtable parameters' MACROS
+
+//----------------- PROCESS TABLE PARAMETER'S MACROS ----------------
 #define MAX_ARGUMENTS 32 //Numero massimo di argomenti per un comando
 #define MAX_ARG_LEN 128 //Lunghezza massima degli argomenti di un comando
 #define MAX_FILE_NAME_LEN 32 //Lunghezza massima della stringa che specifica un file su cui redirigere l'input di un comando
 #define MAX_CMD_LEN 32
+//----------------- PROCESS TABLE PARAMETER'S MACROS ----------------
+//---------------------------- END ---------------------------------
 
-//Tokens MACROS
 
+//-------------------- TOKENS MACROS DEFINITION --------------------
 //Types
 #define OPERATOR 100
 #define COMMAND 200
 #define OPTION 300
 #define FILE 400
-
 //Values
 #define PIPE 0
 #define AND 1
 #define OR 2
 #define IN_REDIRECT 3
 #define OUT_REDIRECT 4
+//-------------------- TOKENS MACROS DEFINITION --------------------
+//---------------------------- END ---------------------------------
 
+
+//-------------------- ERROR CODES DEFINITION --------------------
 //Wrapper functions ERRORS definition
 #define ERR_PIPE 1
 #define ERR_MKSTEMP 2
@@ -143,7 +162,6 @@
 #define ERR_SETENV_I 4
 #define ERR_WAIT 5
 #define ERR_OPEN 6
-
 //Controller's ERRORS definition
 #define ERR_CMD_EXSTS 7
 #define ERR_MAX_ARGS 8
@@ -153,6 +171,13 @@
 #define ERR_FORK_FAIL 12
 #define ERR_SYNTAX_OPERATORS 13
 #define ERR_SYNTAX_UNKNOWN 14
+#define ERR_INVCATION_CNT 15
+#define ERR_SEEK_FAIL 16
+#define ERR_READ_FAIL 17
+#define ERR_WRITE_FAIL 18
+
+//------------------- ERROR CODES DEFINITION --------------------
+//--------------------------- END -------------------------------
 
 
 #endif

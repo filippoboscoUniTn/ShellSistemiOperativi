@@ -6,11 +6,11 @@
 //function to print help usage
 //keeps the main logic clean and because it can be called multiple times
 //called in argument error cases and when argument is -h
-void printUsage( char* _prog_name ){
+void print_usage( char* _prog_name ){
 	printf("usage: %s [-o | --outfile <file>] [-e | --errfile <file>] [-m | --maxlen <value>]\n	", _prog_name);
-	exit(EXIT_SUCCESS);
 }
 
+//needed by the shell
 //function to dinamically return arguments codes
 //matches the string with every argument
 //returns error if the string doesn't match any argument
@@ -21,6 +21,8 @@ argcode_t getcode(char *_arg){
 	if(strcmp(_arg, ARG_STDERRFILE_SL) == 0){ return ARG_STDERRFILE_C; }
 	if(strcmp(_arg, ARG_UNIOUTFILE_SS) == 0){ return ARG_UNIOUTFILE_C; }
 	if(strcmp(_arg, ARG_UNIOUTFILE_SL) == 0){ return ARG_UNIOUTFILE_C; }
+	if(strcmp(_arg, ARG_PATH_SS) == 0){ return ARG_PATH_C; }
+	if(strcmp(_arg, ARG_PATH_SL) == 0){ return ARG_PATH_C; }
 
 	if(strcmp(_arg, ARG_MAXLEN_SS)     == 0){ return ARG_MAXLEN_C; }
 	if(strcmp(_arg, ARG_MAXLEN_SL)     == 0){ return ARG_MAXLEN_C; }
@@ -44,6 +46,64 @@ char* get_envstring(argcode_t _argcode, char *_destination){
 		free(_destination);
 		_destination = NULL;
 	}
+
+	if(_argcode == ARG_STDOUTFILE_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_STDOUTFILE)) );
+		strcpy(_destination, EV_SHELL_STDOUTFILE);
+	}
+
+	if(_argcode == ARG_STDERRFILE_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_STDERRFILE)) );
+		strcpy(_destination, EV_SHELL_STDERRFILE);
+	}
+
+	if(_argcode == ARG_UNIOUTFILE_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_UNIOUTFILE)) );
+		strcpy(_destination, EV_SHELL_UNIOUTFILE);
+	}
+
+	if(_argcode == ARG_PATH_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_PATH)) );
+		strcpy(_destination, EV_PATH);
+	}
+
+	if(_argcode == ARG_MAXLEN_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_MAXLEN)) );
+		strcpy(_destination, EV_MAXLEN);
+	}
+
+	if(_argcode == ARG_PROC_INFO_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_PROC_INFO)) );
+		strcpy(_destination, EV_PROC_INFO);
+	}
+
+	if(_argcode == ARG_ERRNO_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_ERRNO)) );
+		strcpy(_destination, EV_ERRNO);
+	}
+
+	if(_argcode == ARG_PID_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_PID)) );
+		strcpy(_destination, EV_PID);
+	}
+
+	if(_argcode == ARG_UID_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_UID)) );
+		strcpy(_destination, EV_UID);
+	}
+
+	if(_argcode == ARG_STATUS_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_STATUS)) );
+		strcpy(_destination, EV_STATUS);
+	}
+
+	return _destination;
+}
+
+//given an argument code it returns the type associated
+argtype_t gettype(argcode_t _argcode){
+
+	//type string
 	if(_argcode > 0 && _argcode < ARG_MAXLEN_C){ return ARG_TYPE_S; }
 
 	//type int
@@ -146,9 +206,23 @@ void free_resources(char *_cmd, char ** _args, int _argc, char *_buffer, loginfo
 		}
 	}
 
+	if(_buffer != NULL){
+		free(_buffer);
+	}
+
+	//if(_loginfo -> pipe_in != -1){ close(_loginfo -> pipe_in); }
+	//if(_loginfo -> pipe_out != -1){ close(_loginfo -> pipe_out); }
+
+	if(_loginfo -> outf != -1){ fsync(_loginfo -> outf); close(_loginfo -> outf); }
+	if(_loginfo -> errf != -1){ fsync(_loginfo -> errf); close(_loginfo -> errf); }
+	if(_loginfo -> proc_infof != -1){ fsync(_loginfo -> proc_infof); close(_loginfo -> proc_infof); }
+	if(_loginfo != NULL) { free(_loginfo); }
+
+	//debug
+	//printf("Resources freed!\n");
+
+	return;
 }
-
-
 
 //Error handling functions
 char * getErrorMessage(int errno){
@@ -280,6 +354,31 @@ void printError(int errno){
 }
 
 //Wrapper functions for system calls
+ssize_t read_w(int FD,char *buffer,size_t count){
+	ssize_t byteRead = read(FD,buffer,count);
+	if(byteRead == -1){
+		exit_w(ERR_READ_FAIL);
+	}
+	return byteRead;
+}
+
+ssize_t write_w(int FD, char *buffer,size_t count){
+	ssize_t byteWritten = write(FD,buffer,count);
+	if(byteWritten == -1){
+		exit_w(ERR_WRITE_FAIL);
+	}
+	return byteWritten;
+}
+
+void lseek_w(int fd,off_t offset,int whence){
+	off_t res = lseek(fd,offset,whence);
+	if(res < 0){
+		printError(ERR_SEEK_FAIL);
+		exit(ERR_SEEK_FAIL);
+	}
+	return;
+}
+
 void exit_w(int status){
 	printError(status);
 	exit(status);

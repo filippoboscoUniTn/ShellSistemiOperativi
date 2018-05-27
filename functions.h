@@ -9,7 +9,7 @@
 #include "types.h"
 
 //prints usage text
-void printUsage( char* _prog_name );
+void print_usage( char* _prog_name );
 //gets parameter's code
 argcode_t getcode(char *_arg);
 //gets parameter's type
@@ -32,7 +32,9 @@ void free_resources(char *_cmd, char ** _args, int _argc, char *_buffer, loginfo
 void printError(int);
 char * getErrorMessage(int);
 
-
+ssize_t write_w(int, char *, size_t);
+ssize_t read_w(int, char *, size_t);
+void lseek_w(int, off_t, int);
 void exit_w(int);
 void pipe_w(int *);
 void setenv_w(char * ,char *);

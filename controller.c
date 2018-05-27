@@ -15,32 +15,59 @@
       2)Programms execution:
         everytime the algorithm sees fit to spawn a logger it will do so, passing information relevant to that programm execution.
       3)Information logging:
-        once a logger's job is done it notifies the Controller
-        the controller will in tourn gather the loggers results and save theme to the specified file
+        once all loggers are done the controller will in tourn gather the loggers results and save theme to the specified file
       4)Clean-up:
-        Once every logger child has completed the controller will perform clean-up and return relevant information to the shells
+        Once every logger child has completed the controller will perform clean-up and return relevant information to the shell
 
 */
+
+//------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------------
 #include "std_libraries.h"
 #include "macros.h"
 #include "types.h"
 #include "functions.h"
+//------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------------
+//-------------------------------------- END -----------------------------------------
 
 
-//argv[0] always eq "controller"
-//argv[1] string containing controller's input
+//------------------------- CONTROLLER INVOCATION PARAMETERS -------------------------
+//argv[0] -> EXECUTABLE NAME
+//argv[1] -> RAW INPUT
+//argv[>1] -> UNDEFINED
+//------------------------- CONTROLLER INVOCATION PARAMETERS -------------------------
+//-------------------------------------- END -----------------------------------------
 int main(int argc,char **argv){
-  printf("argv[1] = %s\n",argv[1]);
+
+
+//------------------ ARGUMENTS CHEKING FOR CORRECT PROGRAM'S INVOCATION --------------
+  if(argc != 2){
+    exit_w(ERR_INVCATION_CNT);
+  }
+//------------------ ARGUMENTS CHEKING FOR CORRECT PROGRAM'S INVOCATION --------------
+//-------------------------------------- END -----------------------------------------
+
+
+
+//------------------------------ RAW INPUT TOKENIZATION ------------------------------
+  int nTokens = 0;
   char rawInput[MAX_CMD_LEN];
   strcpy(rawInput,argv[1]);
-  int nTokens = 0;
   token_t **inputTokens = tokenize(rawInput,&nTokens);
-  /*DEBUG PRINT TOKENS RECIVED FROM TOKENIZE*/
+//------------------------------ RAW INPUT TOKENIZATION ------------------------------
+//-------------------------------------- END -----------------------------------------
+
+
+
+//--------------------- DEBUG PRINT TOKENS RECIVED FROM TOKENIZE ---------------------
   int i = 0;
   while(inputTokens[i] != NULL){
     printToken(inputTokens[i]);
     i++;
   }
+//--------------------- DEBUG PRINT TOKENS RECIVED FROM TOKENIZE ---------------------
+//-------------------------------------- END -----------------------------------------
+
+
 
   //Puntatore al token in analisi
   token_t *currentToken;
@@ -67,6 +94,7 @@ int main(int argc,char **argv){
   nextProcessTable = malloc(sizeof(processTable_t));
   clearTable(currentProcessTable);
   clearTable(nextProcessTable);
+
 
   while( (currentPointer < nTokens) && !error ){
     //Leggo un token
@@ -173,12 +201,12 @@ int main(int argc,char **argv){
                 }
                 //Copio NULL in ultima posizione
                 exec_argv[argv_size-1] = NULL;
-                setenv_w("outFile",currentProcessTable->tmpOutFile);
-                setenv_w("errFile",currentProcessTable->tmpErrFile);
-                setenv_w("procInfo",currentProcessTable->tmpProcInfoFile);
-                setenv_wi("inputPipe",currentProcessTable->inputPipe);
-                setenv_wi("outputPipe",currentProcessTable->outputPipe);
-                execv("logger",exec_argv);
+                setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
+                setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
+                setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+                setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
+                setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+                execvp(LOGGER_EXEC,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){}
@@ -220,12 +248,12 @@ int main(int argc,char **argv){
                 }
                 //Copio NULL in ultima posizione
                 exec_argv[argv_size-1] = NULL;
-                setenv_w("outFile",currentProcessTable->tmpOutFile);
-                setenv_w("errFile",currentProcessTable->tmpErrFile);
-                setenv_w("procInfo",currentProcessTable->tmpProcInfoFile);
-                setenv_wi("inputPipe",currentProcessTable->inputPipe);
-                setenv_wi("outputPipe",currentProcessTable->outputPipe);
-                execv("logger",exec_argv);
+                setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
+                setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
+                setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+                setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
+                setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+                execvp(LOGGER_EXEC,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
@@ -279,12 +307,12 @@ int main(int argc,char **argv){
                 }
                 //Copio NULL in ultima posizione
                 exec_argv[argv_size-1] = NULL;
-                setenv_w("outFile",currentProcessTable->tmpOutFile);
-                setenv_w("errFile",currentProcessTable->tmpErrFile);
-                setenv_w("procInfo",currentProcessTable->tmpProcInfoFile);
-                setenv_wi("inputPipe",currentProcessTable->inputPipe);
-                setenv_wi("outputPipe",currentProcessTable->outputPipe);
-                execv("logger",exec_argv);
+                setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
+                setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
+                setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+                setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
+                setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+                execvp(LOGGER_EXEC,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
@@ -349,12 +377,12 @@ int main(int argc,char **argv){
           }
           //Copio NULL in ultima posizione
           exec_argv[argv_size-1] = NULL;
-          setenv_w("outFile",currentProcessTable->tmpOutFile);
-          setenv_w("errFile",currentProcessTable->tmpErrFile);
-          setenv_w("procInfo",currentProcessTable->tmpProcInfoFile);
-          setenv_wi("inputPipe",currentProcessTable->inputPipe);
-          setenv_wi("outputPipe",currentProcessTable->outputPipe);
-          execv("logger",exec_argv);
+          setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
+          setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
+          setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+          setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
+          setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+          execvp(LOGGER_EXEC,exec_argv);
           exit_w(ERR_EXEC_FAIL);
         }
         else if(currentProcessTable->pid > 0){}
@@ -371,6 +399,151 @@ int main(int argc,char **argv){
     }
   }
 
+
+
+
+//---------------------------------- ATTESA DEI FIGLI --------------------------------
+  int childStatus;
+  int wpid;
+  while ( ( wpid = wait(&childStatus) ) > 0){
+      printf("wpid = %d\n",wpid);
+      printf("childStatus = %d\n",childStatus);
+  }
+  printf("all children are done\n");
+//--------------------------------- ATTESA DEI FIGLI ---------------------------------
+//-------------------------------------- END -----------------------------------------
+
+
+
+//--------------------------- LETTURA VARIABILI D'AMBIENTE ---------------------------
+  char * outLogFile;
+  char * errLogFile;
+  char * uniLogFile;
+  outLogFile = getenv(EV_SHELL_STDOUTFILE);
+  errLogFile = getenv(EV_SHELL_STDERRFILE);
+  uniLogFile = getenv(EV_SHELL_UNIOUTFILE);
+//--------------------------- LETTURA VARIABILI D'AMBIENTE ---------------------------
+//-------------------------------------- END -----------------------------------------
+
+
+
+//------------------------------- APERTURA FILE DI LOG -------------------------------
+  int outLogFD, errLogFD, uniLogFD;
+  if(outLogFile != NULL){  outLogFD = open_w(outLogFile); }
+  if(errLogFile != NULL){  outLogFD = open_w(errLogFile); }
+  if(uniLogFile != NULL){  outLogFD = open_w(uniLogFile); }
+//------------------------------- APERTURA FILE DI LOG -------------------------------
+//-------------------------------------- END -----------------------------------------
+
+
+
+//----------------------------- LETTURA DEI LOG PARZIALI -----------------------------
+//---------------------------------------- && ----------------------------------------
+//------------------------------ SCRITTURA FILE DI LOG  ------------------------------
+//  A questo punto del programma è necessario scorrere la lista dei processi creati.
+//  Per ogni processo vanno letti i file temporanei nei quali sono state salvate le
+//  informazioni relative all'esecuzione di un programma. (i.e. file di std. Output,
+//  file std. Error e processInfo).
+//  Ogni volta che leggo uno di questi files controllo la scelta dell'utente in merito
+//  alla locazione in cui vanno salvati (e.g. salvare out ed err nello stesso file,
+//  in files diversi, etc...) e dove appropriato ricopio le informazioni lette dai files
+//  temporanei.
+
+
+  //Finche non sono in fondo alla lista dei processi
+  while(processesListTail != NULL){
+
+    int tmpOutFD = processesListTail -> table -> tmpOutFD ;
+    int tmpErrFD = processesListTail -> table -> tmpErrFD ;
+    int tmpProcInfoFD = processesListTail -> table -> tmpProcInfoFD ;
+
+    char readBuffer[CMD_OUT_BUFF_SIZE]; //Buffer per la lettura e scrittura del file
+    ssize_t byteRead; //numero di Byte letti da read()
+    ssize_t byteWritten; //numero di Byte scritti da write()
+
+
+
+
+    //------------------ LETTURA FILE TMP CONTENENTE PROC. INFO ----------------------
+
+    //Riposiziono l'indice di lettura per il file temporaneo
+    lseek_w(tmpProcInfoFD,0,SEEK_SET);
+    while( (byteRead = read_w(tmpProcInfoFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+      //Controllo dove scrivere le informazioni e le scrivo
+      if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
+      if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
+      if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+    }
+    //Pulisco il buffer
+    memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
+
+    //-------------------------------------- END -------------------------------------
+
+
+
+
+    //---------------------- LETTURA FILE TMP ASSOCIATO A STD. OUT -------------------
+
+    //Riposiziono l'indice di lettura per il file temporaneo
+    lseek_w(tmpOutFD,0,SEEK_SET);
+    while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+      //Controllo dove scrivere le informazioni e le scrivo
+      if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
+      if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
+      if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+    }
+    //Pulisco il buffer
+    memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
+
+    //-------------------------------------- END -------------------------------
+
+
+
+
+    //------------------- LETTURA FILE TMP ASSOCIATO A STD. ERR ----------------
+
+    //Riposiziono l'indice di lettura per il file temporaneo
+    lseek_w(tmpErrFD,0,SEEK_SET);
+    while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+      //Controllo dove scrivere le informazioni e le scrivo
+      if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
+      if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
+      if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+    }
+    //Pulisco il buffer
+    memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
+
+    //---------------------------------- END -----------------------------------
+
+
+
+
+    //--------------- CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP-------
+
+    //Chiusura del file descriptor associato al file temporaneo proc. Info
+    close(tmpProcInfoFD);
+    //Chiusura del file descriptor associato al file temporaneo di output
+    close(tmpOutFD);
+    //Chiusura del file descriptor associato al file temporaneo di err
+    close(tmpErrFD);
+
+    //---------------------------------- END -----------------------------------
+
+
+
+
+    //Leggi il prossimo elemento della lista
+    processesListTail = processesListTail -> next;
+  }
+
+
+//------------------------------------ END -------------------------------------
+//------------------------------------ && --------------------------------------
+//------------------------------------ END -------------------------------------
+
+
   printTablesList(processesListHead,processesListTail);
   printPipesList(pipesHead,pipesTail);
+
+  exit(EXIT_SUCCESS);
 }

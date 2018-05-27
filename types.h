@@ -20,6 +20,7 @@ typedef struct{
 } arg_t;
 
 typedef struct{
+
 	//these variables are nearly always used
 	//based on the arguments switch, we know if allocate memory or not
 	char *out_pathname; //stdout partial log file pathname
