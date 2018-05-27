@@ -53,7 +53,7 @@ int main(int argc, char **argv){
 
 	//if no arguments, error
 	if(argc < 2){
-		printf("logger error: no arguments!\n");
+		//printf("logger error: no arguments!\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -77,6 +77,9 @@ int main(int argc, char **argv){
 	char *buffer; //buffer for temporarily holding (a part) of the executed command's stdout
 
 	ssize_t readb, writtenb; //needed for saving return values of read() and write() syscalls
+
+	char *env_buffer; //buffer for temporarily holding the result of getenv()
+	FILE *proc_infof;
 	//---------------------------------------------------------------------------------------------
 
 
@@ -114,6 +117,10 @@ int main(int argc, char **argv){
 	strcpy(t_err, "/Users/nik/Desktop/stderr/");
 	strcat(t_err, cmd);
 	strcat(t_err, ".txt");
+	char *t_procinfo = my_malloc( 200 );
+	strcpy(t_procinfo, "/Users/nik/Desktop/proc_info/");
+	strcat(t_procinfo, cmd);
+	strcat(t_procinfo, ".txt");
 
 	//debug
 	//printf("after strcpy\n");
@@ -121,6 +128,7 @@ int main(int argc, char **argv){
 	setenv(EV_MAXLEN, "200", OVERWRITE);
 	setenv(EV_STDOUTFILE, t_out, OVERWRITE);
 	setenv(EV_STDERRFILE, t_err, OVERWRITE);
+	setenv(EV_PINFO_OUTFILE, t_procinfo, OVERWRITE);
 	setenv(EV_PIPE_IN, "0", OVERWRITE);
 	setenv(EV_PIPE_OUT, "1", OVERWRITE);
 
@@ -168,7 +176,7 @@ int main(int argc, char **argv){
 		loginfo -> errf = open(loginfo -> err_pathname, O_WRONLY | O_CREAT, 0755); //opens stderr partial log file's FD
 
 		//debug
-		//printf("after opening the errfile errf --> %i\n", errf);
+		//printf("after opening the errfile errf --> %i\n", loginfo -> errf);
 
 		link_pipe(STDERR_FILENO, loginfo -> errf); //links the executed command stderr to the logfile's FD
 	}
@@ -221,7 +229,7 @@ int main(int argc, char **argv){
 		//if error opening log file exits
 		if(loginfo -> outf == -1){
 			//debug
-			printf("cannot create %s\n", loginfo -> out_pathname);
+			//printf("cannot create %s\n", loginfo -> out_pathname);
 
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
@@ -288,19 +296,6 @@ int main(int argc, char **argv){
 			//printf("field: %s\n", loginfo -> out_pathname);
 			//printf("cmd: %s\n", cmd);
 
-			//loginfo_free(loginfo);
-
-
-			//if(loginfo -> pipe_in != -1){ close(loginfo -> pipe_in); }
-			//if(loginfo -> pipe_out != -1){ close(loginfo -> pipe_out); }
-
-			//if(loginfo -> outf != -1){ close(loginfo -> outf); }
-			//if(loginfo -> errf != -1){ close(loginfo -> errf); }
-			//if(loginfo -> proc_infof != -1){ close(loginfo -> proc_infof); }
-
-
-
-
 
 			//if we are here means that the child finished, and it's possible that he wrote some bytes before finishing and after our last read
 			//so we continue to read until the pipe it's empty
@@ -310,23 +305,6 @@ int main(int argc, char **argv){
 			}
 
 
-
-
-
-			/*
-			free(loginfo);
-			free(cmd);
-			free(buffer);
-
-			//if(loginfo -> proc_info_pathname != NULL){ free(loginfo -> proc_info_pathname); }
-
-			int i;
-			for(i = 0; i < argc; i++){
-				if(args[i] != NULL){ free(args[i]); }
-			}
-			*/
-
-			//printf("\n\nRESOURCES FREED.\n");
 		}
 
 		//---------- CHILD ----------
@@ -341,6 +319,7 @@ int main(int argc, char **argv){
 			//debug
 			//printf("exec failed\n");
 
+			printf("Error executing command '%s'\n", cmd); //printing error to user
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}
@@ -360,6 +339,52 @@ int main(int argc, char **argv){
 		if environment variable is defined open the output file
 		for every env var, we check if print it to the outfile
 	*/
+
+	//if the process info pathname has been defined in the environment by the controller we have to write informations in it
+	if(loginfo -> proc_info_pathname != NULL){
+
+		//---------- ERROR OPENING PROCESS INFO OUTPUT FILE ----------
+		proc_infof = fopen(loginfo -> proc_info_pathname, "w"); //opens process info partial log file stream
+		//printf("trying to open %s\n", loginfo -> proc_info_pathname);
+
+		//if error opening log file exits
+		if(proc_infof == NULL){
+			//debug
+			//printf("cannot create %s\n", loginfo -> proc_info_pathname);
+
+			free_resources(cmd, args, argc, buffer, loginfo);
+			exit(EXIT_FAILURE);
+		}
+
+
+		//---------- PROCESS INFORMATIONS PRINTING ---------
+		//for each environmental variable that's not FALSE (so not touched or put TRUE) we print the associated information
+		env_buffer = getenv(EV_ERRNO);
+		if(env_buffer == NULL){
+			//printf("printing errno...\n");
+			fprintf(proc_infof, "Errno: %i\n", pinfo -> si_errno);
+		}
+
+		env_buffer = getenv(EV_PID);
+		if(env_buffer == NULL){
+			//printf("printing pid...\n");
+			fprintf(proc_infof, "PID: %i\n", (int)pinfo -> si_pid);
+		}
+
+		env_buffer = getenv(EV_UID);
+		if(env_buffer == NULL){
+			//printf("printing uid...\n");
+			fprintf(proc_infof, "UID: %i\n", (int)pinfo -> si_uid);
+		}
+
+		env_buffer = getenv(EV_STATUS);
+		if(env_buffer == NULL){
+			//printf("printing status...\n");
+			fprintf(proc_infof, "Status: %i\n", pinfo -> si_status);
+		}
+
+		fclose(proc_infof); //we close the file stream
+	}
 
 	//-------------------------------- PROCESS INFO HANDLING end ----------------------------------
 

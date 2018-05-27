@@ -6,9 +6,8 @@
 //function to print help usage
 //keeps the main logic clean and because it can be called multiple times
 //called in argument error cases and when argument is -h
-void printUsage( char* _prog_name ){
+void print_usage( char* _prog_name ){
 	printf("usage: %s [-o | --outfile <file>] [-e | --errfile <file>] [-m | --maxlen <value>]\n	", _prog_name);
-	exit(EXIT_SUCCESS);
 }
 
 //needed by the shell
@@ -22,6 +21,8 @@ argcode_t getcode(char *_arg){
 	if(strcmp(_arg, ARG_STDERRFILE_SL) == 0){ return ARG_STDERRFILE_C; }
 	if(strcmp(_arg, ARG_UNIOUTFILE_SS) == 0){ return ARG_UNIOUTFILE_C; }
 	if(strcmp(_arg, ARG_UNIOUTFILE_SL) == 0){ return ARG_UNIOUTFILE_C; }
+	if(strcmp(_arg, ARG_PATH_SS) == 0){ return ARG_PATH_C; }
+	if(strcmp(_arg, ARG_PATH_SL) == 0){ return ARG_PATH_C; }
 
 	if(strcmp(_arg, ARG_MAXLEN_SS)     == 0){ return ARG_MAXLEN_C; }
 	if(strcmp(_arg, ARG_MAXLEN_SL)     == 0){ return ARG_MAXLEN_C; }
@@ -59,6 +60,11 @@ char* get_envstring(argcode_t _argcode, char *_destination){
 	if(_argcode == ARG_UNIOUTFILE_C){
 		_destination = malloc( sizeof(char) * (strlen(EV_UNIOUTFILE)) );
 		strcpy(_destination, EV_UNIOUTFILE);
+	}
+
+	if(_argcode == ARG_PATH_C){
+		_destination = malloc( sizeof(char) * (strlen(EV_PATH)) );
+		strcpy(_destination, EV_PATH);
 	}
 
 	if(_argcode == ARG_MAXLEN_C){

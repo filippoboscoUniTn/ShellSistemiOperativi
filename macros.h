@@ -35,6 +35,14 @@
 #define ARG_UNIOUTFILE_C 30
 #define ARG_UNIOUTFILE_SS "-o\0"
 #define ARG_UNIOUTFILE_SL "--output\0"
+#define ARG_PATH_C 40
+#define ARG_PATH_SS "-p\0"
+#define ARG_PATH_SL "--path\0"
+
+//help argument definition
+//doesn't have a code because it's supported only as first argument
+#define ARG_HELP_SS "-h\0"
+#define ARG_HELP_SL "--help\0"
 
 //------ INT TYPE ------
 //1000 < code < 2000
@@ -81,6 +89,7 @@
 #define EV_STDOUTFILE "stdout_filepath"
 #define EV_STDERRFILE "stderr_filepath"
 #define EV_PINFO_OUTFILE "proc_info_filepath" //used internally
+#define EV_PATH "PATH"
 #define EV_MAXLEN "max_output_length"
 #define EV_PIPE_IN "pipe_in" //used internally
 #define EV_PIPE_OUT "pipe_out" //used internally
@@ -109,6 +118,10 @@
 #define CMD_OUT_BUFF_SIZE 1024 //command output buffer size
 
 
+#define CONTROLLER_EXEC "controller"
+#define LOGGER_EXEC "logger"
+
+//#define CONTROLLER_EXEC_PATH ""
 
 
 

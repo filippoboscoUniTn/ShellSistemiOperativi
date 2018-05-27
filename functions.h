@@ -9,7 +9,7 @@
 #include "types.h"
 
 //prints usage text
-void printUsage( char* _prog_name );
+void print_usage( char* _prog_name );
 //gets parameter's code
 argcode_t getcode(char *_arg);
 //gets parameter's type
