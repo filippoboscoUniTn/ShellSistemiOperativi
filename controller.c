@@ -173,87 +173,84 @@ int main(int argc,char **argv){
 
           case PIPE:{
             printf("operatore riconosciuto come PIPE\n");
+
+//------------------------------ALLOCAZIONE DELLA PIPE -----------------------
+//--------PER L'IPC DEGLI OPERANDI A DX E SX DELL OPERATORE DI PIPEE ---------
             pipesList_t *newPipe = malloc(sizeof(pipesList_t));
             pipe_w(newPipe->pipe);
             currentProcessTable->outputPipe = newPipe->pipe[WRITE];
             nextProcessTable->inputPipe = newPipe->pipe[READ];
             pushToPipesList(&pipesHead,&pipesTail,newPipe);
+//---------------------------- END -------------------------------------------
+
+
+
+            //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
+            // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
+            //              e l'operando a SX di quest'ultimo ha fallito
             if(currentProcessTable->skip == FALSE){
+
+              //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
               currentProcessTable->pid = fork();
               if(currentProcessTable->pid == 0){
 
-                int argv_size = 4 + currentProcessTable->nOptions;
-                char ** exec_argv = malloc(argv_size * sizeof(char*));
-                //Copio nome eseguibile
-                exec_argv[0] = malloc(sizeof(char)*MAX_ARG_LEN);
-                strcpy(exec_argv[0],"logger\0");
-                //Copio comando da eseguire
-                exec_argv[1] = malloc(sizeof(char)*MAX_ARG_LEN);
-                strcpy(exec_argv[1],currentProcessTable->command);
-                //Copio numero opzioni
-                exec_argv[2] = malloc(sizeof(char)*MAX_ARG_LEN);
-                snprintf(exec_argv[2],sizeof(exec_argv[2]),"%d",currentProcessTable->nOptions);
-                //Copio opzioni
-                int i;
-                for(i=3;i<(argv_size-1);i++){
-                  exec_argv[i] = malloc(sizeof(char)*MAX_ARG_LEN);
-                  strcpy(exec_argv[i],currentProcessTable->options[i-3]);
-                }
-                //Copio NULL in ultima posizione
-                exec_argv[argv_size-1] = NULL;
+                //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
                 setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
                 setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
                 setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
-                execvp(LOGGER_EXEC,exec_argv);
+                //---------------------------- END -----------------------------
+
+                execvp(LOGGER_EXEC_NAME,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){}
               else{
                 exit_w(ERR_FORK_FAIL);
               }
+              //---------------------------- END -------------------------------
+
+
             }
+            //---------------------------- END ---------------------------------
+
+
+
+            //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
             processesList_t *newTable = malloc(sizeof(processesList_t));
             newTable->table = malloc(sizeof(processTable_t));
             copyTable(newTable->table,currentProcessTable);
             pushToTablesList(&processesListHead,&processesListTail,newTable);
             copyTable(currentProcessTable,nextProcessTable);
             clearTable(nextProcessTable);
+            //---------------------------- END --------------------------------
 
             }
             break;
-          case AND:{
 
+          case AND:{
             printf("operatore riconosciuto come AND\n");
+            //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
+            // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
+            //              e l'operando a SX di quest'ultimo ha fallito
             if(currentProcessTable->skip == FALSE){
+
+              //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
               currentProcessTable->pid = fork();
               if(currentProcessTable->pid == 0){
-                int argv_size = 4 + currentProcessTable->nOptions;
-                char ** exec_argv = malloc(argv_size * sizeof(char*));
-                //Copio nome eseguibile
-                exec_argv[0] = malloc(sizeof(char)*MAX_ARG_LEN);
-                strcpy(exec_argv[0],"logger\0");
-                //Copio comando da eseguire
-                exec_argv[1] = malloc(sizeof(char)*MAX_ARG_LEN);
-                strcpy(exec_argv[1],currentProcessTable->command);
-                //Copio numero opzioni
-                exec_argv[2] = malloc(sizeof(char)*MAX_ARG_LEN);
-                snprintf(exec_argv[2],sizeof(exec_argv[2]),"%d",currentProcessTable->nOptions);
-                //Copio opzioni
-                int i;
-                for(i=3;i<(argv_size-1);i++){
-                  exec_argv[i] = malloc(sizeof(char)*MAX_ARG_LEN);
-                  strcpy(exec_argv[i],currentProcessTable->options[i-3]);
-                }
-                //Copio NULL in ultima posizione
-                exec_argv[argv_size-1] = NULL;
+
+                //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
                 setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
                 setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
                 setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
-                execvp(LOGGER_EXEC,exec_argv);
+                //---------------------------- END -----------------------------
+
+                execvp(LOGGER_EXEC_NAME,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
@@ -273,46 +270,39 @@ int main(int argc,char **argv){
             else if(currentProcessTable->skip == TRUE){
               nextProcessTable->skip = currentProcessTable->skip && FALSE;
             }
+            //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
             processesList_t *newTable = malloc(sizeof(processesList_t));
             newTable->table = malloc(sizeof(processTable_t));
             copyTable(newTable->table,currentProcessTable);
             pushToTablesList(&processesListHead,&processesListTail,newTable);
             copyTable(currentProcessTable,nextProcessTable);
             clearTable(nextProcessTable);
+            //---------------------------- END --------------------------------
 
             }
             break;
           case OR:{
 
             printf("operatore riconosciuto come OR\n");
+            //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
+            // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
+            //              e l'operando a SX di quest'ultimo ha fallito
             if(currentProcessTable->skip == FALSE){
+
+              //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
               currentProcessTable->pid = fork();
               if(currentProcessTable->pid == 0){
-                int argv_size = 4 + currentProcessTable->nOptions;
-                char ** exec_argv = malloc(argv_size * sizeof(char*));
-                //Copio nome eseguibile
-                exec_argv[0] = malloc(sizeof(char)*MAX_ARG_LEN);
-                strcpy(exec_argv[0],"logger\0");
-                //Copio comando da eseguire
-                exec_argv[1] = malloc(sizeof(char)*MAX_ARG_LEN);
-                strcpy(exec_argv[1],currentProcessTable->command);
-                //Copio numero opzioni
-                exec_argv[2] = malloc(sizeof(char)*MAX_ARG_LEN);
-                snprintf(exec_argv[2],sizeof(exec_argv[2]),"%d",currentProcessTable->nOptions);
-                //Copio opzioni
-                int i;
-                for(i=3;i<(argv_size-1);i++){
-                  exec_argv[i] = malloc(sizeof(char)*MAX_ARG_LEN);
-                  strcpy(exec_argv[i],currentProcessTable->options[i-3]);
-                }
-                //Copio NULL in ultima posizione
-                exec_argv[argv_size-1] = NULL;
+
+                //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
                 setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
                 setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
                 setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
-                execvp(LOGGER_EXEC,exec_argv);
+                //---------------------------- END -----------------------------
+
+                execvp(LOGGER_EXEC_NAME,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
@@ -328,16 +318,22 @@ int main(int argc,char **argv){
               else{
                 exit_w(ERR_FORK_FAIL);
               }
+              //---------------------------- END -------------------------------
+
             }
+            //---------------------------- END ---------------------------------
+
             else if(currentProcessTable->skip == TRUE){
               nextProcessTable->skip = currentProcessTable->skip || FALSE;
             }
+            //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
             processesList_t *newTable = malloc(sizeof(processesList_t));
             newTable->table = malloc(sizeof(processTable_t));
             copyTable(newTable->table,currentProcessTable);
             pushToTablesList(&processesListHead,&processesListTail,newTable);
             copyTable(currentProcessTable,nextProcessTable);
             clearTable(nextProcessTable);
+            //---------------------------- END --------------------------------
 
             }
             break;
@@ -354,48 +350,44 @@ int main(int argc,char **argv){
     }
     currentPointer += 1;
     if(currentPointer == nTokens){
-      if(currentProcessTable->skip == FALSE){
-        currentProcessTable->pid = fork();
-        if(currentProcessTable->pid == 0){
+      //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
+                  // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
+                  //              e l'operando a SX di quest'ultimo ha fallito
+                  if(currentProcessTable->skip == FALSE){
 
-          int argv_size = 4 + currentProcessTable->nOptions;
-          char ** exec_argv = malloc(argv_size * sizeof(char*));
-          //Copio nome eseguibile
-          exec_argv[0] = malloc(sizeof(char)*MAX_ARG_LEN);
-          strcpy(exec_argv[0],"logger\0");
-          //Copio comando da eseguire
-          exec_argv[1] = malloc(sizeof(char)*MAX_ARG_LEN);
-          strcpy(exec_argv[1],currentProcessTable->command);
-          //Copio numero opzioni
-          //exec_argv[2] = malloc(sizeof(char)*MAX_ARG_LEN);
-          //snprintf(exec_argv[2],sizeof(exec_argv[2]),"%d",currentProcessTable->nOptions);
-          //Copio opzioni
-          int i;
-          for(i=2;i<(argv_size-1);i++){
-            exec_argv[i] = malloc(sizeof(char)*MAX_ARG_LEN);
-            strcpy(exec_argv[i],currentProcessTable->options[i-3]);
-          }
-          //Copio NULL in ultima posizione
-          exec_argv[argv_size-1] = NULL;
-          setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
-          setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
-          setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
-          setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
-          setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
-          execvp(LOGGER_EXEC,exec_argv);
-          exit_w(ERR_EXEC_FAIL);
-        }
-        else if(currentProcessTable->pid > 0){}
-        else{
-          exit_w(ERR_FORK_FAIL);
-        }
-      }
+                    //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
+                    currentProcessTable->pid = fork();
+                    if(currentProcessTable->pid == 0){
+
+                      //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                      char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
+                      setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
+                      setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
+                      setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+                      setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
+                      setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+                      //---------------------------- END -----------------------------
+
+                      execvp(LOGGER_EXEC_NAME,exec_argv);
+                      exit_w(ERR_EXEC_FAIL);
+                    }
+                    else if(currentProcessTable->pid > 0){}
+                    else{
+                      exit_w(ERR_FORK_FAIL);
+                    }
+                    //---------------------------- END -------------------------------
+
+
+                  }
+                  //---------------------------- END ---------------------------------
+                  //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
       processesList_t *newTable = malloc(sizeof(processesList_t));
       newTable->table = malloc(sizeof(processTable_t));
       copyTable(newTable->table,currentProcessTable);
       pushToTablesList(&processesListHead,&processesListTail,newTable);
       copyTable(currentProcessTable,nextProcessTable);
       clearTable(nextProcessTable);
+      //---------------------------- END --------------------------------
     }
   }
 

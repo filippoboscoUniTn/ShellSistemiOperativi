@@ -443,6 +443,28 @@ int open_w(char *path){
 
 
 //Controller's utility functions
+char ** getExecArguments(char * executable,processTable_t *table){
+		int argvSize = (table -> nOptions) + 3; //Numero di argomenti = numero di opzioni + nome eseguibile + comando + NULL per terminare
+		char ** exec_argv = malloc(argvSize*sizeof(char*));
+		//Copio nome eseguibile in posizione 0
+		exec_argv[0] = malloc(sizeof(char)*MAX_ARG_LEN);
+		strcpy(exec_argv[0],executable);
+		//Copio comando da eseguire
+		exec_argv[1] = malloc(sizeof(char)*MAX_ARG_LEN);
+		strcpy(exec_argv[1],table->command);
+		//Copio opzioni
+		int i;
+		for(i=2;i<(argvSize-1);i++){
+			exec_argv[i] = malloc(sizeof(char)*MAX_ARG_LEN);
+			strcpy(exec_argv[i],table->options[i-2]);
+		}
+		//Copio NULL in ultima posizione
+		exec_argv[argvSize-1] = NULL;
+
+		return exec_argv;
+}
+
+
 void printToken(token_t*token){
 	bool VERBOSE = FALSE;
   if(VERBOSE){printf("\nwelcome to printToken\n");}

@@ -43,7 +43,7 @@ void waitpid_w(int ,int *,int);
 int mkstemp_w(char *);
 int open_w(char *);
 
-
+char ** getExecArguments(char *, processTable_t *);
 void printToken(token_t*);
 bool isOperator(char*, token_t*);
 token_t **tokenize(char *,int*);

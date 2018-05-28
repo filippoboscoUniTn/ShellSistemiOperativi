@@ -123,8 +123,11 @@
 
 
 //---------------------- EXEC IMAGES MACROS -------------------------
-#define CONTROLLER_EXEC "/Users/nik/git/ShellSistemiOperativi/controller"
-#define LOGGER_EXEC "logger"
+#define LOGGER_EXEC_PATH "/Users/filippobosco/gitRepos/ShellSistemiOperativi/logger"
+#define CONTROLLER_EXEC_PATH "/Users/filippobosco/gitRepos/ShellSistemiOperativi/controller"
+#define LOGGER_EXEC_NAME "logger"
+#define CONTROLLER_EXEC_NAME "controller"
+
 //---------------------- EXEC IMAGES MACROS -------------------------
 //---------------------------- END ----------------------------------
 
