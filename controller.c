@@ -462,9 +462,46 @@ int main(int argc,char **argv){
     ssize_t byteWritten; //numero di Byte scritti da write()
 
 
+//---------------- SCRITTURA INFORMAZIONI DEL COMANDO ESEGUITO -----------------
+    //Scrittura del nome del comando e delle opzioni utilizzate nell'invocazione
+    //Controllando sempre che file sono stati definiti dall'utente per la scrittura
+    int i;
+    for(i=0;i<processesListTail -> table -> nOptions;i++){
+
+      //Controllo File di output
+      if(outLogFile != NULL){
+        //Se è la prima opzione scrivo anche il nome del comando
+        if(i==0){
+          byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
+        }
+        byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
+      }
+
+      //Controllo File di errore
+      if(errLogFile != NULL){
+        if(i==0){
+          byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
+        }
+        byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
+      }
+
+      //Controllo File di output ed errore unificati
+      if(uniLogFile != NULL){
+        if(i==0){
+          byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
+        }
+        byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
+      }
+
+    }
 
 
-    //------------------ LETTURA FILE TMP CONTENENTE PROC. INFO ----------------------
+//-------------------------------------- END -------------------------------------
+
+
+
+
+//------------------ LETTURA FILE TMP CONTENENTE PROC. INFO ----------------------
 
     //Riposiziono l'indice di lettura per il file temporaneo
     lseek_w(tmpProcInfoFD,0,SEEK_SET);
@@ -477,48 +514,59 @@ int main(int argc,char **argv){
     //Pulisco il buffer
     memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
 
-    //-------------------------------------- END -------------------------------------
+//-------------------------------------- END -----------------------------------
 
 
 
 
-    //---------------------- LETTURA FILE TMP ASSOCIATO A STD. OUT -------------------
+//---------------------- LETTURA FILE TMP ASSOCIATO A STD. OUT -----------------
 
-    //Riposiziono l'indice di lettura per il file temporaneo
-    lseek_w(tmpOutFD,0,SEEK_SET);
-    while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
-      //Controllo dove scrivere le informazioni e le scrivo
-      if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
-      if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
-      if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
-    }
-    //Pulisco il buffer
-    memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
+  //Riposiziono l'indice di lettura per il file temporaneo
+  lseek_w(tmpOutFD,0,SEEK_SET);
+  while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+    //Controllo dove scrivere le informazioni e le scrivo
+    if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
+    if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
+    if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+  }
+  //Pulisco il buffer
+  memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
 
-    //-------------------------------------- END -------------------------------
-
-
-
-
-    //------------------- LETTURA FILE TMP ASSOCIATO A STD. ERR ----------------
-
-    //Riposiziono l'indice di lettura per il file temporaneo
-    lseek_w(tmpErrFD,0,SEEK_SET);
-    while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
-      //Controllo dove scrivere le informazioni e le scrivo
-      if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
-      if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
-      if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
-    }
-    //Pulisco il buffer
-    memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
-
-    //---------------------------------- END -----------------------------------
+//-------------------------------------- END -----------------------------------
 
 
 
 
-    //--------------- CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP-------
+//------------------- LETTURA FILE TMP ASSOCIATO A STD. ERR --------------------
+
+  //Riposiziono l'indice di lettura per il file temporaneo
+  lseek_w(tmpErrFD,0,SEEK_SET);
+  while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+    //Controllo dove scrivere le informazioni e le scrivo
+    if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
+    if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
+    if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+  }
+  //Pulisco il buffer
+  memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
+
+//---------------------------------- END ---------------------------------------
+
+
+
+
+
+
+//----------------- PULIZIA E RIMOZIONE DEI FILE TEMPORANEI --------------------
+    //Eliminazione del file temporaneo di output
+    unlink(processesListTail -> table -> tmpOutFile);
+    //Eliminazione del file temporaneo di errore
+    unlink(processesListTail -> table -> tmpErrFile);
+    //Eliminazione del file temporaneo di proces Info
+    unlink(processesListTail -> table -> tmpProcInfoFile);
+//---------------------------------- END ---------------------------------------
+
+//------------ CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP -------------
 
     //Chiusura del file descriptor associato al file temporaneo proc. Info
     close(tmpProcInfoFD);
@@ -527,10 +575,7 @@ int main(int argc,char **argv){
     //Chiusura del file descriptor associato al file temporaneo di err
     close(tmpErrFD);
 
-    //---------------------------------- END -----------------------------------
-
-
-
+//---------------------------------- END ---------------------------------------
 
     //Leggi il prossimo elemento della lista
     processesListTail = processesListTail -> next;
