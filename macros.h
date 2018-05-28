@@ -123,7 +123,7 @@
 
 
 //---------------------- EXEC IMAGES MACROS -------------------------
-#define CONTROLLER_EXEC "controller"
+#define CONTROLLER_EXEC "/Users/nik/git/ShellSistemiOperativi/controller"
 #define LOGGER_EXEC "logger"
 //---------------------- EXEC IMAGES MACROS -------------------------
 //---------------------------- END ----------------------------------
@@ -143,7 +143,7 @@
 #define OPERATOR 100
 #define COMMAND 200
 #define OPTION 300
-#define FILE 400
+#define FILE_ 400
 //Values
 #define PIPE 0
 #define AND 1

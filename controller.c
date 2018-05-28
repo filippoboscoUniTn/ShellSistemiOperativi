@@ -150,7 +150,7 @@ int main(int argc,char **argv){
             printf("operatore riconosciuto come IN_REDIRECT\n");
             int nextPointer = currentPointer +1;
             token_t *fileToken = inputTokens[nextPointer];
-            if(fileToken->type != FILE){exit_w(ERR_FILE_XPCTD);}
+            if(fileToken->type != FILE_){exit_w(ERR_FILE_XPCTD);}
             strcpy(currentProcessTable->inputFile,fileToken->value);
             currentProcessTable->inputPipe = open_w(currentProcessTable->inputFile);
             currentPointer += 1;
@@ -163,7 +163,7 @@ int main(int argc,char **argv){
             printf("operatore riconosciuto come OUT_REDIRECT\n");
             int nextPointer = currentPointer +1;
             token_t *fileToken = inputTokens[nextPointer];
-            if(fileToken->type != FILE){exit_w(ERR_FILE_XPCTD);}
+            if(fileToken->type != FILE_){exit_w(ERR_FILE_XPCTD);}
             strcpy(currentProcessTable->outRedirectFile,fileToken->value);
             currentProcessTable->outRedirectFD = open_w(currentProcessTable->outRedirectFile);
             currentPointer += 1;
@@ -347,7 +347,7 @@ int main(int argc,char **argv){
         }
         break;
 
-      case FILE :
+      case FILE_ :
         printf("token : <%d,%s> riconosciuto come FILE\n",currentToken->type,(char*)currentToken->value);
         break;
 
@@ -367,11 +367,11 @@ int main(int argc,char **argv){
           exec_argv[1] = malloc(sizeof(char)*MAX_ARG_LEN);
           strcpy(exec_argv[1],currentProcessTable->command);
           //Copio numero opzioni
-          exec_argv[2] = malloc(sizeof(char)*MAX_ARG_LEN);
-          snprintf(exec_argv[2],sizeof(exec_argv[2]),"%d",currentProcessTable->nOptions);
+          //exec_argv[2] = malloc(sizeof(char)*MAX_ARG_LEN);
+          //snprintf(exec_argv[2],sizeof(exec_argv[2]),"%d",currentProcessTable->nOptions);
           //Copio opzioni
           int i;
-          for(i=3;i<(argv_size-1);i++){
+          for(i=2;i<(argv_size-1);i++){
             exec_argv[i] = malloc(sizeof(char)*MAX_ARG_LEN);
             strcpy(exec_argv[i],currentProcessTable->options[i-3]);
           }

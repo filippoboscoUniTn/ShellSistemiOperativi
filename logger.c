@@ -51,7 +51,7 @@ int main(int argc, char **argv){
 
 	//if no arguments, error
 	if(argc < 2){
-		//printf("logger error: no arguments!\n");
+		printf("logger error: no arguments!\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv){
 	printf("before strcpy\n");
 	*/
 
-
+	/*
 	//these variables will be put in the environment by the controller
 	char *t_out = my_malloc( 200 );
 	strcpy(t_out, "/Users/nik/Desktop/stdout/");
@@ -128,6 +128,7 @@ int main(int argc, char **argv){
 	setenv(EV_PINFO_OUTFILE, t_procinfo, OVERWRITE);
 	setenv(EV_PIPE_IN, "0", OVERWRITE);
 	setenv(EV_PIPE_OUT, "1", OVERWRITE);
+	*/
 
 	//debug
 	//printf("before getenvs and atois\n");
@@ -172,7 +173,7 @@ int main(int argc, char **argv){
 		loginfo -> errf = open(loginfo -> err_pathname, O_WRONLY | O_CREAT, 0755); //opens stderr partial log file's FD
 
 		//debug
-		//printf("after opening the errfile errf --> %i\n", loginfo -> errf);
+		printf("after opening the errfile errf --> %i\n", loginfo -> errf);
 
 		link_pipe(STDERR_FILENO, loginfo -> errf); //links the executed command stderr to the logfile's FD
 	}
@@ -184,7 +185,7 @@ int main(int argc, char **argv){
 	//if we don't have to log the stdout, we just redirect it to the output pipe
 	if(loginfo -> out_pathname == NULL){
 		//debug
-		//printf("linked stdout to pipe_out\n");
+		printf("linked stdout to pipe_out\n");
 
 		link_pipe(STDOUT_FILENO, loginfo -> pipe_out); //links the executed command stdout to pipe_out
 	}
@@ -201,7 +202,7 @@ int main(int argc, char **argv){
 		//if error creating pipe exits
 		if(pipe(pipes) == -1){
 			//debug
-			//fprintf(stdout, "cannot create pipe\n");
+			fprintf(stdout, "cannot create pipe\n");
 
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
@@ -213,7 +214,7 @@ int main(int argc, char **argv){
 		//if error allocating memory exits
 		if(buffer == NULL){
 			//debug
-			//fprintf(stdout, "cannot allocate output buffer\n");
+			fprintf(stdout, "cannot allocate output buffer\n");
 
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
@@ -225,7 +226,7 @@ int main(int argc, char **argv){
 		//if error opening log file exits
 		if(loginfo -> outf == -1){
 			//debug
-			//printf("cannot create %s\n", loginfo -> out_pathname);
+			printf("cannot create %s\n", loginfo -> out_pathname);
 
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
@@ -313,7 +314,7 @@ int main(int argc, char **argv){
 			execvp(cmd, args); //executes the command with given parameters
 
 			//debug
-			//printf("exec failed\n");
+			printf("exec failed\n");
 
 			printf("Error executing command '%s'\n", cmd); //printing error to user
 			free_resources(cmd, args, argc, buffer, loginfo);
@@ -346,7 +347,7 @@ int main(int argc, char **argv){
 		//if error opening log file exits
 		if(proc_infof == NULL){
 			//debug
-			//printf("cannot create %s\n", loginfo -> proc_info_pathname);
+			printf("cannot create %s\n", loginfo -> proc_info_pathname);
 
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);

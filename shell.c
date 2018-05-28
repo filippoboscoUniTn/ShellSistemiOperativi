@@ -184,7 +184,11 @@ int main(int argc, char **argv){
 				args[1] = my_strcpy(buffer, args[1]); //command expression
 				args[2] = NULL; //null terminated vector
 
-				//execvp("CONTROLLER_EXEC_PATH", args);
+				execvp(CONTROLLER_EXEC, args);
+
+				//debug
+				printf("exec failed\n");
+				perror("execvp");
 
 				exit(EXIT_SUCCESS);
 			}

@@ -287,6 +287,7 @@ char * getErrorMessage(int errno){
     default:
     	strcpy(errMessage,"Error recognizing error : errception\0");
   }
+  return NULL;
 }
 
 void printError(int errno){
@@ -484,7 +485,7 @@ void printToken(token_t*token){
       printf("token->type = OPTION\ntoken->value = %s\n",(char*)token->value);
     break;
 
-    case FILE:
+    case FILE_:
       printf("token->type = FILE\ntoken->value = %s\n",(char*)token->value);
     break;
 
@@ -622,7 +623,7 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
       //Match as fileName for redirect
       if(lteq_redirect){
         if(VERBOSE){printf("matching ' %s ' as file Name\n",words[wordsCounter]);}
-        tokenTmp -> type = FILE;
+        tokenTmp -> type = FILE_;
         tokenTmp -> value = malloc(MAX_FILE_NAME_LEN*sizeof(char));
         strcpy((tokenTmp -> value),words[wordsCounter]);
         tokenArray[(nTokens)] = tokenTmp;
