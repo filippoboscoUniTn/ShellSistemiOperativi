@@ -161,6 +161,7 @@ char* my_malloc(int _n){
 //copies _source to _destination
 //allocates memory for _destination if not done previously
 char* my_strcpy(char *_source, char *_destination){
+
 	if(_source == NULL){ return NULL; }
 	if(_destination == NULL){
 		_destination = my_malloc(strlen(_source));
@@ -364,8 +365,10 @@ ssize_t read_w(int FD,char *buffer,size_t count){
 }
 
 ssize_t write_w(int FD, char *buffer,size_t count){
+	printf("write_w FD = %d\n",FD );
 	ssize_t byteWritten = write(FD,buffer,count);
 	if(byteWritten == -1){
+		perror("Error writing");
 		exit_w(ERR_WRITE_FAIL);
 	}
 	return byteWritten;
@@ -432,8 +435,10 @@ void waitpid_w(int pid,int *wstatus,int flag){
 }
 
 int open_w(char *path){
+	printf("open_w : path = %s\n",path);
   int fd;
   fd = open(path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+	printf("open_w FD = %d\n",fd);
   if(fd < 0){
     perror("ERR_OPEN  ");
     exit(ERR_OPEN);
@@ -568,7 +573,7 @@ bool isOperator(char* inputString,token_t*tokenTmp){
 }
 
 token_t **tokenize(char *rawInput,int *tokenNumber){
-	bool VERBOSE = FALSE;
+	bool VERBOSE = FALSE	;
   if(VERBOSE){printf("welcome to tokenize\n\n");}
 
   token_t ** tokenArray = malloc(MAX_CMD_LEN*sizeof(token_t*));
@@ -619,7 +624,7 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
         exit_w(ERR_FILE_XPCTD);
       }
       else if(lteq_command || lteq_option || lteq_fileName){
-        if( (long)tokenTmp -> value == IN_REDIRECT || (long)tokenTmp -> value == OUT_REDIRECT){
+        if( *((int*)(tokenTmp -> value)) == IN_REDIRECT || *((int*)(tokenTmp -> value)) == OUT_REDIRECT){
           if(VERBOSE){printf("matching ' %s ' as redirect operator\n",words[wordsCounter]);}
           tokenArray[nTokens] = tokenTmp;
           nTokens++;
@@ -702,12 +707,11 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
 
 void clearTable(processTable_t *table){
   strcpy(table->command,"");
-	table->nOptions = -1;
 	int i;
 	for(i=0;i<table->nOptions;i++){
 		strcpy(table->options[i],"");
 	}
-
+	table->nOptions = -1;
 	strcpy(table->tmpOutFile,"");
 	table->tmpOutFD = -1;
 
@@ -732,16 +736,22 @@ void clearTable(processTable_t *table){
 void copyTable(processTable_t *tableTo,processTable_t *tableFrom){
 
 	strcpy(tableTo->command,tableFrom->command);
-	tableTo->nOptions = tableFrom->nOptions;
 	int i;
-	for(i=0;i<tableFrom->nOptions;i++){
+	for(i=0;i<tableTo->nOptions;i++){
 		strcpy(tableTo->options[i],"");
+	}
+	tableTo->nOptions = tableFrom->nOptions;
+
+	for(i=0;i<tableFrom->nOptions;i++){
 		strcpy(tableTo->options[i],tableFrom->options[i]);
 	}
 	strcpy(tableTo->tmpOutFile,tableFrom->tmpOutFile);
 	tableTo->tmpOutFD = tableFrom->tmpOutFD;
 
 	strcpy(tableTo->tmpErrFile,tableFrom->tmpErrFile);
+	printf("tableTo->tmpErrFD = %d\n",tableTo->tmpErrFD );
+
+	printf("tableFROM->tmpErrFD = %d\n",tableFrom->tmpErrFD );
 	tableTo->tmpErrFD = tableFrom->tmpErrFD;
 
 	strcpy(tableTo->tmpProcInfoFile,tableFrom->tmpProcInfoFile);
@@ -792,14 +802,20 @@ void pushToTablesList(processesList_t **head,processesList_t **tail,processesLis
   return;
 }
 
+void rewindLinkedList(processesList_t **head,processesList_t **tail){
+	*tail = *head;
+	while( (*tail) -> prev != NULL ){
+		(*tail) = (*tail) -> prev;
+	}
+}
 
 //Print functions
 void printTablesList(processesList_t *head,processesList_t *tail){
-printf("\nPRINTING TABLES LIST\n");
+	printf("\nPRINTING TABLES LIST\n");
   int counter = 0;
   while(tail != NULL){
 
-    printf("\tTable[%d] :\n\t\ttail->command = %s\n\t\t",counter,tail->table->command);
+    printf("\tTable[%d] :\n\t\tcommand = %s\n\t\t",counter,tail->table->command);
 		printf("Options :\n");
 		int i;
 		for(i=0;i<tail->table->nOptions;i++){

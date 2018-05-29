@@ -109,22 +109,31 @@ int main(int argc,char **argv){
         strcpy(currentProcessTable->command,currentToken->value);
         char tmpName[MAX_CMD_LEN];
 
-        strcpy(tmpName,"/tmp/");
-        strcat(tmpName,currentToken->value);
+        strcpy(tmpName,"./tmp/");
+        strcat(tmpName,(char*)currentToken->value);
         strcat(tmpName,"outFile_XXXXXX");
         currentProcessTable->tmpOutFD = mkstemp_w(tmpName);
+        printf("before close tmpOutFD = %d\n",currentProcessTable->tmpOutFD );
+        close(currentProcessTable->tmpOutFD);
+        printf("after close tmpOutFD = %d\n",currentProcessTable->tmpOutFD );
         strcpy(currentProcessTable->tmpOutFile,tmpName);
 
-        strcpy(tmpName,"/tmp/");
+        strcpy(tmpName,"./tmp/");
         strcat(tmpName,currentToken->value);
         strcat(tmpName,"errFile_XXXXXX");
         currentProcessTable->tmpErrFD = mkstemp_w(tmpName);
+        printf("before close tmpErrFD = %d\n",currentProcessTable->tmpErrFD );
+        close(currentProcessTable->tmpErrFD);
+        printf("after close tmpErrFD = %d\n",currentProcessTable->tmpErrFD );
         strcpy(currentProcessTable->tmpErrFile,tmpName);
 
-        strcpy(tmpName,"/tmp/");
+        strcpy(tmpName,"./tmp/");
         strcat(tmpName,currentToken->value);
         strcat(tmpName,"procInfoFile_XXXXXX");
         currentProcessTable->tmpProcInfoFD = mkstemp_w(tmpName);
+        printf("before close tmpProcInfoFD = %d\n",currentProcessTable->tmpProcInfoFD );
+        close(currentProcessTable->tmpProcInfoFD);
+        printf("after close tmpProcInfoFD = %d\n",currentProcessTable->tmpProcInfoFD );
         strcpy(currentProcessTable->tmpProcInfoFile,tmpName);
 
 
@@ -135,6 +144,7 @@ int main(int argc,char **argv){
 
         printf("token : <%d,%s> riconosciuto come OPZIONE\n",currentToken->type,(char*)currentToken->value);
         if(currentProcessTable->nOptions > MAX_ARGUMENTS) {  exit_w(ERR_MAX_ARGS); }
+        printf("process table option[noption] = %s\n", currentProcessTable->options[currentProcessTable->nOptions]);
         if( strcmp(currentProcessTable->options[currentProcessTable->nOptions],"") != 0)  { exit_w(ERR_OPT_EXSTS); }
         strcpy(currentProcessTable->options[currentProcessTable->nOptions],currentToken->value);
         currentProcessTable->nOptions += 1;
@@ -142,7 +152,7 @@ int main(int argc,char **argv){
 
       case OPERATOR :
 
-        printf("token : <%d,%ld> riconosciuto come OPERATORE\n",currentToken->type,(long)currentToken->value);
+        printf("token : <%d,%d> riconosciuto come OPERATORE\n",currentToken->type,*((int*)(currentToken -> value)));
         switch(*((int*)(currentToken -> value))){
 
           case IN_REDIRECT:{
@@ -203,7 +213,7 @@ int main(int argc,char **argv){
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
                 //---------------------------- END -----------------------------
 
-                execvp(LOGGER_EXEC_NAME,exec_argv);
+                execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){}
@@ -250,7 +260,7 @@ int main(int argc,char **argv){
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
                 //---------------------------- END -----------------------------
 
-                execvp(LOGGER_EXEC_NAME,exec_argv);
+                execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
@@ -302,7 +312,7 @@ int main(int argc,char **argv){
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
                 //---------------------------- END -----------------------------
 
-                execvp(LOGGER_EXEC_NAME,exec_argv);
+                execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable->pid > 0){
@@ -310,7 +320,7 @@ int main(int argc,char **argv){
                 waitpid_w(currentProcessTable->pid,&wstatus,0);
                 if(WIFEXITED(wstatus)){
                   int status = WEXITSTATUS(wstatus);
-                  if(status > 0){
+                  if(status == 0){
                     nextProcessTable->skip = TRUE;
                   }
                 }
@@ -368,7 +378,7 @@ int main(int argc,char **argv){
                       setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
                       //---------------------------- END -----------------------------
 
-                      execvp(LOGGER_EXEC_NAME,exec_argv);
+                      execvp(LOGGER_EXEC_PATH,exec_argv);
                       exit_w(ERR_EXEC_FAIL);
                     }
                     else if(currentProcessTable->pid > 0){}
@@ -391,6 +401,9 @@ int main(int argc,char **argv){
     }
   }
 
+    printTablesList(processesListHead,processesListTail);
+    printPipesList(pipesHead,pipesTail);
+    rewindLinkedList(&processesListHead,&processesListTail);
 
 
 
@@ -420,10 +433,22 @@ int main(int argc,char **argv){
 
 
 //------------------------------- APERTURA FILE DI LOG -------------------------------
+//--------------------- E RIPOSIZIONAMENTO CURSORE -----------------------
   int outLogFD, errLogFD, uniLogFD;
-  if(outLogFile != NULL){  outLogFD = open_w(outLogFile); }
-  if(errLogFile != NULL){  outLogFD = open_w(errLogFile); }
-  if(uniLogFile != NULL){  outLogFD = open_w(uniLogFile); }
+  if(outLogFile != NULL){
+    outLogFD = open_w(outLogFile);
+    lseek_w(outLogFD,0,SEEK_END);
+   }
+
+  if(errLogFile != NULL){
+     errLogFD = open_w(errLogFile);
+     lseek_w(errLogFD,0,SEEK_END);
+    }
+
+  if(uniLogFile != NULL){
+      uniLogFD = open_w(uniLogFile);
+      lseek_w(uniLogFD,0,SEEK_END);
+    }
 //------------------------------- APERTURA FILE DI LOG -------------------------------
 //-------------------------------------- END -----------------------------------------
 
@@ -445,44 +470,63 @@ int main(int argc,char **argv){
   //Finche non sono in fondo alla lista dei processi
   while(processesListTail != NULL){
 
-    int tmpOutFD = processesListTail -> table -> tmpOutFD ;
-    int tmpErrFD = processesListTail -> table -> tmpErrFD ;
-    int tmpProcInfoFD = processesListTail -> table -> tmpProcInfoFD ;
-
+    int tmpOutFD = open_w(processesListTail -> table -> tmpOutFile) ;
+    int tmpErrFD = open_w(processesListTail -> table -> tmpErrFile) ;
+    int tmpProcInfoFD = open_w(processesListTail -> table -> tmpProcInfoFile) ;
+    printf("tmpOutFD = %d\n",tmpOutFD );
+    printf("tmpErrFD = %d\n",tmpErrFD );
+    printf("tmpProcInfoFD = %d\n",tmpProcInfoFD );
     char readBuffer[CMD_OUT_BUFF_SIZE]; //Buffer per la lettura e scrittura del file
     ssize_t byteRead; //numero di Byte letti da read()
     ssize_t byteWritten; //numero di Byte scritti da write()
 
 
+
+
 //---------------- SCRITTURA INFORMAZIONI DEL COMANDO ESEGUITO -----------------
     //Scrittura del nome del comando e delle opzioni utilizzate nell'invocazione
     //Controllando sempre che file sono stati definiti dall'utente per la scrittura
+    if(outLogFile != NULL){
+      printf("in out if\n" );
+      //Se è la prima opzione scrivo anche il nome del comando
+      printf("printing : %s to out file\n",processesListTail->table-> command);
+
+        byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
+        printf("byteWritten = %ld to out\n",byteWritten);
+    }
+    if(errLogFile != NULL){
+      printf("printing : %s to err file\n",processesListTail->table-> command);
+      //Se è la prima opzione scrivo anche il nome del comando
+        byteWritten = write_w(errLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
+        printf("byteWritten = %ld to err\n",byteWritten);
+
+    }
+    if(uniLogFile != NULL){
+      //Se è la prima opzione scrivo anche il nome del comando
+      printf("printing : %s to uni file\n",processesListTail->table-> command);
+
+        byteWritten = write_w(uniLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
+        printf("byteWritten = %ld to uni\n",byteWritten);
+
+    }
+
+
     int i;
     for(i=0;i<processesListTail -> table -> nOptions;i++){
 
       //Controllo File di output
       if(outLogFile != NULL){
-        //Se è la prima opzione scrivo anche il nome del comando
-        if(i==0){
-          byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
-        }
         byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
       }
 
       //Controllo File di errore
       if(errLogFile != NULL){
-        if(i==0){
-          byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
-        }
-        byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
+        byteWritten = write_w(errLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
       }
 
       //Controllo File di output ed errore unificati
       if(uniLogFile != NULL){
-        if(i==0){
-          byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
-        }
-        byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
+        byteWritten = write_w(uniLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
       }
 
     }
@@ -518,7 +562,6 @@ int main(int argc,char **argv){
   while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
     //Controllo dove scrivere le informazioni e le scrivo
     if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
-    if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
     if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
   }
   //Pulisco il buffer
@@ -535,7 +578,6 @@ int main(int argc,char **argv){
   lseek_w(tmpErrFD,0,SEEK_SET);
   while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
     //Controllo dove scrivere le informazioni e le scrivo
-    if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
     if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
     if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
   }
@@ -550,12 +592,12 @@ int main(int argc,char **argv){
 
 
 //----------------- PULIZIA E RIMOZIONE DEI FILE TEMPORANEI --------------------
-    //Eliminazione del file temporaneo di output
-    unlink(processesListTail -> table -> tmpOutFile);
-    //Eliminazione del file temporaneo di errore
-    unlink(processesListTail -> table -> tmpErrFile);
-    //Eliminazione del file temporaneo di proces Info
-    unlink(processesListTail -> table -> tmpProcInfoFile);
+    // //Eliminazione del file temporaneo di output
+    // unlink(processesListTail -> table -> tmpOutFile);
+    // //Eliminazione del file temporaneo di errore
+    // unlink(processesListTail -> table -> tmpErrFile);
+    // //Eliminazione del file temporaneo di proces Info
+    // unlink(processesListTail -> table -> tmpProcInfoFile);
 //---------------------------------- END ---------------------------------------
 
 //------------ CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP -------------
@@ -573,7 +615,8 @@ int main(int argc,char **argv){
     processesListTail = processesListTail -> next;
   }
 
-
+  //Rewind della tail per farla tornare a puntare al primo elemento della lista!
+  rewindLinkedList(&processesListHead,&processesListTail);
 //------------------------------------ END -------------------------------------
 //------------------------------------ && --------------------------------------
 //------------------------------------ END -------------------------------------

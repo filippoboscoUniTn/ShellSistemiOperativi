@@ -80,9 +80,9 @@ int main(int argc, char **argv){
 			arg_type = gettype(arg_code); //catching actual parameter's type
 
 			//debug
-			//printf("t_arg: %s\n", t_arg);
-			//printf("arg_code: %i\n", arg_code);
-			//printf("arg_type: %i\n", arg_type);
+			printf("t_arg: %s\n", t_arg);
+			printf("arg_code: %i\n", arg_code);
+			printf("arg_type: %i\n", arg_type);
 
 			//---------- ARGUMENT TYPE SWITCH ----------
 			//based on the argument's code we know where/how to save the value
@@ -106,7 +106,7 @@ int main(int argc, char **argv){
 
 						setenv(EV_PATH, path, OVERWRITE); //setting all the values in the environment
 						//debug
-						//printf("Set '%s' = '%s'\n", EV_PATH, path);
+						printf("Set '%s' = '%s'\n", EV_PATH, path);
 					}
 					//if every other argument
 					else{
@@ -114,7 +114,7 @@ int main(int argc, char **argv){
 						setenv(env_var_key, argv[curr_arg], OVERWRITE); //setting the environment variable with the parameter's value
 					}
 					//debug
-					//printf("Set '%s' = '%s'\n", env_var_key, argv[curr_arg]);
+					printf("Set '%s' = '%s'\n", env_var_key, argv[curr_arg]);
 
 					break;
 
@@ -125,7 +125,7 @@ int main(int argc, char **argv){
 					setenv(env_var_key, EV_FALSE, OVERWRITE); //setting the environment variable with FALSE (if no parameter the variable is assumed TRUE)
 
 					//debug
-					//printf("Set '%s' = '%s'\n", env_var_key, EV_FALSE);
+					printf("Set '%s' = '%s'\n", env_var_key, EV_FALSE);
 					break;
 
 				//---------- TYPE ERROR ----------
@@ -137,8 +137,8 @@ int main(int argc, char **argv){
 
 				//default kept for exception handler
 				default:
-					//printf("default??\n");
-					//printf("code: %i\n", arg_code);
+					printf("default??\n");
+					printf("code: %i\n", arg_code);
 					exit(EXIT_FAILURE);
 					break;
 			}
@@ -156,35 +156,46 @@ int main(int argc, char **argv){
 
 	printf("Shell started :)\ntype '/quit' to exit.\n\n");
 
-	do{
+	while( not_interrupted ){
 		fflush(stdin); //flushing stream for cleaning the input
 		printf("> "); // prompt
 		fgets(input, CMD_EXP_BUFF_SIZE, stdin); // saves the input in the buffer to be tokenized
 
+		//debug
+		printf("input string: %s\n", input);
+
 		buffer = strtok(input, ";"); //gets the part of the input before the first ';' if present
 		while(buffer != NULL){
-			//printf("string: %s\n", buffer);
+			printf("string: %s\n", buffer);
+
+			//Rimozione del new line dalla stringa da passare al controller
+			int bufferLen = strlen(buffer);
+			if( bufferLen > 0 && buffer[bufferLen-1] == '\n'){buffer[bufferLen-1] = '\0';}
 
 			//---------- FORK ----------
 			//child will exec the controller
 			//father will continue parsing and forking
 			pid = fork();
-
+			printf("after fork\n");
 			//---------- CHILD ----------
 			if(pid == 0){
-				//debug
-				//printf("Exec controller.\n");
-				//printf("args[0]: %s\n", args[0]);
-				//printf("args[1]: %s\n", args[1]);
-				//printf("args[2]: %s\n", args[2]);
-				//fflush(stdout);
 
+				printf("hello from child %d\n",getpid());
 				//arguments vector to be passed to the exec
-				args[0] = my_strcpy(CONTROLLER_EXEC, args[0]); //first argument command's name
-				args[1] = my_strcpy(buffer, args[1]); //command expression
+				args[0] = malloc(sizeof(char)*strlen(CONTROLLER_EXEC_NAME)+1);
+				strcpy(args[0],CONTROLLER_EXEC_NAME);
+				args[1] = malloc( sizeof(char)*(strlen(buffer)+1) );
+				strcpy(args[1],buffer);
 				args[2] = NULL; //null terminated vector
 
-				execvp(CONTROLLER_EXEC, args);
+				//debug
+				printf("Exec controller.\n");
+				printf("args[0]: %s\n", args[0]);
+				printf("args[1]: %s\n", args[1]);
+				printf("args[2]: %s\n", args[2]);
+				fflush(stdout);
+
+				execvp(CONTROLLER_EXEC_PATH, args);
 
 				//debug
 				printf("exec failed\n");
@@ -200,20 +211,21 @@ int main(int argc, char **argv){
 
 			//---------- ERROR FORKING ----------
 			else{
-				//printf("Error forking!\n");
+				printf("Error forking!\n");
 				exit(EXIT_FAILURE);
 			}
 		}
+
 		wait(NULL); //waits all children to finish before requesting another input
 		fflush(stdout); //forces all output to be printed
 
-	} while( not_interrupted ); //listen for inputs from stdin until SIGINT
+	}; //listen for inputs from stdin until SIGINT
 
 	//----------------------------- COMMANDS EXPRESSIONS LISTENING end ----------------------------
 
 
 	//------------------------------------- FREEING RESOURCES -------------------------------------
-	if(env_var_key != NULL){
+	/*if(env_var_key != NULL){
 		free(env_var_key);
 	}
 
@@ -230,7 +242,7 @@ int main(int argc, char **argv){
 		if(args[i] != NULL){
 			free(args[i]);
 		}
-	}
+	}*/
 	//---------------------------------------------------------------------------------------------
 
 	printf("\nExited successfully.\n\n");

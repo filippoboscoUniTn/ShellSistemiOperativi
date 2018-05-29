@@ -51,6 +51,7 @@ void copyTable(processTable_t *,processTable_t *);
 void clearTable(processTable_t *);
 void pushToPipesList(pipesList_t **, pipesList_t **, pipesList_t *);
 void pushToTablesList(processesList_t **, processesList_t **, processesList_t *);
+void rewindLinkedList(processesList_t **,processesList_t **);
 
 
 void printTablesList(processesList_t *, processesList_t *);

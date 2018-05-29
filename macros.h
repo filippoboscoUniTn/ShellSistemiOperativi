@@ -123,8 +123,8 @@
 
 
 //---------------------- EXEC IMAGES MACROS -------------------------
-#define LOGGER_EXEC_PATH "/Users/filippobosco/gitRepos/ShellSistemiOperativi/logger"
-#define CONTROLLER_EXEC_PATH "/Users/filippobosco/gitRepos/ShellSistemiOperativi/controller"
+#define LOGGER_EXEC_PATH "/home/filippo/gitRepos/ShellSistemiOperativi/logger"
+#define CONTROLLER_EXEC_PATH "/home/filippo/gitRepos/ShellSistemiOperativi/controller"
 #define LOGGER_EXEC_NAME "logger"
 #define CONTROLLER_EXEC_NAME "controller"
 

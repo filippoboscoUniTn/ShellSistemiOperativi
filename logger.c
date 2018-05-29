@@ -95,14 +95,14 @@ int main(int argc, char **argv){
 
 
 	//debug
-	/*
+
 	printf("cmd --> %s\n", cmd);
 	int j;
-	for(j = 0; args[j] != NULL; j++){
+	for(j = 0; j < argc; j++){
 		printf("argv[%i] --> %s\n", j, args[j]);
 	}
-	printf("before strcpy\n");
-	*/
+	//printf("before strcpy\n");
+
 
 	/*
 	//these variables will be put in the environment by the controller
@@ -147,17 +147,23 @@ int main(int argc, char **argv){
 	loginfo -> pipe_out = atoi(getenv(EV_PIPE_OUT));
 	//---------------------------------------------------------------------------------------------
 
+	if(loginfo -> pipe_in == -1){
+		loginfo -> pipe_in = STDIN_FILENO;
+	}
 
+	if(loginfo -> pipe_out == -1){
+		loginfo -> pipe_out = STDOUT_FILENO;
+	}
 
 	//debug
-	/*
+
 	printf("after getenvs and atois\n");
 	printf("outf_pathname --> %s\n", loginfo -> out_pathname);
 	printf("errf_pathname --> %s\n", loginfo -> err_pathname);
 	printf("proc_infof_pathname --> %s\n", loginfo -> proc_info_pathname);
 	printf("pipe_in --> %i\n", loginfo -> pipe_in);
 	printf("pipe_out --> %i\n", loginfo -> pipe_out);
-	*/
+
 
 
 
@@ -174,7 +180,7 @@ int main(int argc, char **argv){
 
 		//debug
 		printf("after opening the errfile errf --> %i\n", loginfo -> errf);
-
+		printf("linked stderr to Err_file\n");
 		link_pipe(STDERR_FILENO, loginfo -> errf); //links the executed command stderr to the logfile's FD
 	}
 	//----------------------------------- STDERR HANDLING end -------------------------------------
@@ -240,12 +246,12 @@ int main(int argc, char **argv){
 
 
 		//debug
-		/*
+
 		printf("linking stdout (%i) to pipes[WRITE](%i)\n", STDOUT_FILENO, pipes[WRITE]);
 		printf("the father will read from pipes[READ] (%i) putting in buffer\n", pipes[READ]);
 		printf("will write to outf (%i) from buffer\n", loginfo -> outf);
 		printf("then will write to pipe out (%i) from buffer\n", loginfo -> pipe_out);
-		*/
+
 
 
 
@@ -288,7 +294,7 @@ int main(int argc, char **argv){
 
 
 			//debug
-			//printf("Child has terminated.\nNow i'll free resources.\n");
+			printf("Child has terminated.\nNow i'll free resources.\n");
 			//printf("pointer: %p\n", loginfo);
 			//printf("field: %s\n", loginfo -> out_pathname);
 			//printf("cmd: %s\n", cmd);
@@ -301,6 +307,9 @@ int main(int argc, char **argv){
 				writtenb = write(loginfo -> pipe_out, buffer, (size_t)readb);//writes to pipe_out
 			}
 
+			close(pipes[READ]);
+			close(loginfo -> pipe_in);
+			close(loginfo -> pipe_out);
 
 		}
 
