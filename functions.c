@@ -350,6 +350,9 @@ void printError(int errno){
 			printf("Unknows syntax error\n");
 		break;
 
+		case ERR_OP_NOT_SUPPORTED:
+			printf("Operator not supported!\n");
+
     default:
     	printf("Error recognizing error : errception\n");
   }
@@ -608,6 +611,10 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
     while( (charPointer<MAX_CMD_LEN) && (currentChar != '\0') && (currentChar != ' ') ){
       if(VERBOSE){printf("currentChar = %c\n",currentChar);}
       subString[subStringPointer] = currentChar;
+			// if(strcmp(currentChar,"(") == 0 || strcmp(currentChar,")") == 0 ){
+			// 	exit_w(ERR_OP_NOT_SUPPORTED);
+			// }
+
       subStringPointer += 1;
       charPointer += 1;
       currentChar = rawInput[charPointer];

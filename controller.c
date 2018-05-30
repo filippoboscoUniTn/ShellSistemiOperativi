@@ -454,21 +454,36 @@ int main(int argc,char **argv){
         tailTmp = tailTmp -> next;
       }
   }
+  rewindLinkedList(&processesListHead,&processesListTail);
+
   printf("all children are done\n");
 //--------------------------------- ATTESA DEI FIGLI ---------------------------------
 //-------------------------------------- END -----------------------------------------
 
 
 
-//--------------------------- LETTURA VARIABILI D'AMBIENTE ---------------------------
+//----------------------- LETTURA VARIABILI D'AMBIENTE -------------------------
+//-------------- CONTENENTI INFORMAZIONI SUI FILE E LE MODALITÀ DI LOG ---------
   char * outLogFile;
   char * errLogFile;
   char * uniLogFile;
-  int maxOutputLength;
+  char * maxOutputLength;
+  int maxOutput;
+
   outLogFile = getenv(EV_SHELL_STDOUTFILE);
   errLogFile = getenv(EV_SHELL_STDERRFILE);
   uniLogFile = getenv(EV_SHELL_UNIOUTFILE);
-  maxOutputLength = atoi(getenv(EV_MAXLEN));
+  maxOutputLength = getenv(EV_MAXLEN);
+  printf("outLogFile = %s\n",outLogFile);
+  printf("errLogFile = %s\n",errLogFile);
+  printf("uniLogFile = %s\n",uniLogFile);
+  printf("maxOutputLength = %s\n",maxOutputLength);
+  if(maxOutputLength != NULL){
+    maxOutput = atoi(maxOutputLength);
+  }
+  else{
+    maxOutput = -1;
+  }
 //--------------------------- LETTURA VARIABILI D'AMBIENTE ---------------------------
 //-------------------------------------- END -----------------------------------------
 
@@ -521,8 +536,9 @@ int main(int argc,char **argv){
     char readBuffer[CMD_OUT_BUFF_SIZE]; //Buffer per la lettura e scrittura del file
     ssize_t byteRead; //numero di Byte letti da read()
     ssize_t byteWritten; //numero di Byte scritti da write()
-
-
+    int totWrittenOut = 0;
+    int totWrittenErr = 0;
+    int totWrittenUni = 0;
 
 
 //---------------- SCRITTURA INFORMAZIONI DEL COMANDO ESEGUITO -----------------
@@ -598,8 +614,38 @@ int main(int argc,char **argv){
   lseek_w(tmpOutFD,0,SEEK_SET);
   while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
     //Controllo dove scrivere le informazioni e le scrivo
-    if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
-    if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+    if(outLogFile != NULL){
+      if(maxOutput == -1){
+        byteWritten = write_w(outLogFD,readBuffer,byteRead);
+      }
+      else if(maxOutput != -1 && totWrittenOut < maxOutput){
+        int writableOut = maxOutput - totWrittenOut;
+        if(writableOut >= byteRead){
+          byteWritten = write_w(outLogFD,readBuffer,byteRead);
+          totWrittenOut += byteWritten;
+        }
+        else{
+          byteWritten = write_w(outLogFD,readBuffer,writableOut);
+          totWrittenOut += byteWritten;
+        }
+      }
+    }
+    if(uniLogFile != NULL){
+      if(maxOutput == -1){
+        byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+      }
+      else if(maxOutput != -1 && totWrittenUni < maxOutput){
+        int writableUni = maxOutput - totWrittenUni;
+        if(writableUni >= byteRead){
+          byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+          totWrittenUni += byteWritten;
+        }
+        else{
+          byteWritten = write_w(uniLogFD,readBuffer,writableUni);
+          totWrittenUni += byteWritten;
+        }
+      }
+    }
   }
   //Pulisco il buffer
   memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
@@ -615,8 +661,46 @@ int main(int argc,char **argv){
   lseek_w(tmpErrFD,0,SEEK_SET);
   while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
     //Controllo dove scrivere le informazioni e le scrivo
-    if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
-    if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+    if(errLogFile != NULL){
+
+      if(maxOutput == -1){
+        byteWritten = write_w(errLogFD,readBuffer,byteRead);
+      }
+      else if(maxOutput != -1 && totWrittenErr < maxOutput){
+
+        int writableErr = maxOutput - totWrittenErr;
+        if(writableErr >= byteRead){
+          byteWritten = write_w(errLogFD,readBuffer,byteRead);
+          totWrittenErr += byteWritten;
+        }
+        else{
+          byteWritten = write_w(errLogFD,readBuffer,writableErr);
+          totWrittenErr += byteWritten;
+        }
+
+      }
+
+    }
+    if(uniLogFile != NULL){
+
+      if(maxOutput == -1){
+        byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+      }
+      else if(maxOutput != -1 && totWrittenUni < maxOutput){
+
+        int writableUni = maxOutput - totWrittenUni;
+        if(writableUni >= byteRead){
+          byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+          totWrittenUni += byteWritten;
+        }
+        else{
+          byteWritten = write_w(uniLogFD,readBuffer,writableUni);
+          totWrittenUni += byteWritten;
+        }
+
+      }
+
+    }
   }
   //Pulisco il buffer
   memset(readBuffer,0,CMD_OUT_BUFF_SIZE);

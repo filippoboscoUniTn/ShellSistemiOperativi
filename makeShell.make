@@ -1,11 +1,13 @@
-#commento
+build : setup compile
+	@echo build
 
-execOSX : shell.o taskController
-	gcc shell.o -o shell
+setup : 
+	mkdir bin && cd bin && mkdir tmp
 
-shell.o : shell.c
-	gcc -c shell.c -o shell.o
+compile : src/logger.c src/controller.c src/shell.c
+	gcc -std=gnu90 src/logger.c src/functions.c -o bin/logger
+	gcc -std=gnu90 src/controller.c src/functions.c -o bin/controller
+	gcc -std=gnu90 src/shell.c src/functions.c -o bin/shell
 
-taskController : taskController.c
-	gcc -c taskController.c -o taskController.o
-	gcc taskController.o -o taskController
+clean :
+	rm -r bin && rm -r tmp

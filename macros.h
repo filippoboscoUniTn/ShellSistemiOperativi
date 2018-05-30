@@ -123,8 +123,8 @@
 
 
 //---------------------- EXEC IMAGES MACROS -------------------------
-#define LOGGER_EXEC_PATH "/Users/filippobosco/gitRepos/ShellSistemiOperativi/logger"
-#define CONTROLLER_EXEC_PATH "/Users/filippobosco/gitRepos/ShellSistemiOperativi/controller"
+#define LOGGER_EXEC_PATH "/home/filippo/gitRepos/ShellSistemiOperativi/logger"
+#define CONTROLLER_EXEC_PATH "/home/filippo/gitRepos/ShellSistemiOperativi/controller"
 #define LOGGER_EXEC_NAME "logger"
 #define CONTROLLER_EXEC_NAME "controller"
 
@@ -180,6 +180,7 @@
 #define ERR_WRITE_FAIL 18
 #define ERR_INPUT_OVRITE 19//Errore nel caso un utente cerchi di ri definire la redirezione più di una volta (i.e. ls | wc < file.txt)
 #define ERR_CLOSE_FD 20
+#define ERR_OP_NOT_SUPPORTED 21
 
 //------------------- ERROR CODES DEFINITION --------------------
 //--------------------------- END -------------------------------
