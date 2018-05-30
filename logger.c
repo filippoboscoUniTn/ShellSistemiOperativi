@@ -72,7 +72,7 @@ int main(int argc, char **argv){
 
 	loginfo_t *loginfo; //structure for holding logging informations passed in the environment by the controller
 	int pipes[2]; //buffer pipe
-	char *buffer; //buffer for temporarily holding (a part) of the executed command's stdout
+	char *buffer = NULL; //buffer for temporarily holding (a part) of the executed command's stdout
 
 	ssize_t readb, writtenb; //needed for saving return values of read() and write() syscalls
 

@@ -445,7 +445,15 @@ int open_w(char *path){
   }
   return fd;
 }
-
+int close_w(int FD){
+	int closeResult;
+	closeResult = close(FD);
+	if(closeResult < 0){
+		perror("ERR_CLOSE");
+		exit(ERR_CLOSE_FD);
+	}
+	return closeResult;
+}
 
 //Controller's utility functions
 char ** getExecArguments(char * executable,processTable_t *table){
@@ -706,66 +714,59 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
 }
 
 void clearTable(processTable_t *table){
-  strcpy(table->command,"");
+
+	//Pulizia della tabella con valori convenzionalmente privi di significato
+  strcpy(table -> command,"");
 	int i;
-	for(i=0;i<table->nOptions;i++){
-		strcpy(table->options[i],"");
+	for(i=0;i<table -> nOptions;i++){
+		strcpy(table -> options[i],"");
 	}
-	table->nOptions = -1;
-	strcpy(table->tmpOutFile,"");
-	table->tmpOutFD = -1;
+	table -> nOptions = -1;
 
-	strcpy(table->tmpErrFile,"");
-	table->tmpErrFD = -1;
+	strcpy(table -> tmpOutFile,"");
+	strcpy(table -> tmpErrFile,"");
+	strcpy(table -> tmpProcInfoFile,"");
 
-	strcpy(table->tmpProcInfoFile,"");
-	table->tmpProcInfoFD = -1;
+	strcpy(table -> outRedirectFile,"");
+	strcpy(table -> inputFile,"");
 
-	strcpy(table->outRedirectFile,"");
-	table->outRedirectFD = -1;
+	table -> inputPipe = -1;
+	table -> outputPipe = -1;
 
-	strcpy(table->inputFile,"");
-	table->inputPipe = -1;
-	table->outputPipe = -1;
+	table -> pid = -1;
+	table -> status = -1;
+	table -> skip = FALSE;
 
-	table->pid = -1;
-	table->skip = FALSE;
-
+	return;
 }
 
 void copyTable(processTable_t *tableTo,processTable_t *tableFrom){
 
-	strcpy(tableTo->command,tableFrom->command);
+	//Copia dei valori di una tabella tableFrom in un altra tabella tableTo
+	strcpy(tableTo -> command,tableFrom -> command);
+
 	int i;
-	for(i=0;i<tableTo->nOptions;i++){
-		strcpy(tableTo->options[i],"");
+	for(i=0;i<tableTo -> nOptions;i++){
+		strcpy(tableTo -> options[i],"");
 	}
-	tableTo->nOptions = tableFrom->nOptions;
-
-	for(i=0;i<tableFrom->nOptions;i++){
-		strcpy(tableTo->options[i],tableFrom->options[i]);
+	tableTo -> nOptions = tableFrom -> nOptions;
+	for(i=0;i<tableFrom -> nOptions;i++){
+		strcpy(tableTo -> options[i],tableFrom -> options[i]);
 	}
-	strcpy(tableTo->tmpOutFile,tableFrom->tmpOutFile);
-	tableTo->tmpOutFD = tableFrom->tmpOutFD;
 
-	strcpy(tableTo->tmpErrFile,tableFrom->tmpErrFile);
-	printf("tableTo->tmpErrFD = %d\n",tableTo->tmpErrFD );
+	strcpy(tableTo -> tmpOutFile,tableFrom -> tmpOutFile);
+	strcpy(tableTo -> tmpErrFile,tableFrom -> tmpErrFile);
+	strcpy(tableTo -> tmpProcInfoFile,tableFrom -> tmpProcInfoFile);
 
-	printf("tableFROM->tmpErrFD = %d\n",tableFrom->tmpErrFD );
-	tableTo->tmpErrFD = tableFrom->tmpErrFD;
+	strcpy(tableTo -> outRedirectFile,tableFrom -> outRedirectFile);
+	strcpy(tableTo -> inputFile,tableFrom -> inputFile);
 
-	strcpy(tableTo->tmpProcInfoFile,tableFrom->tmpProcInfoFile);
-	tableTo->tmpProcInfoFD = tableFrom->tmpProcInfoFD;
+	tableTo -> inputPipe = tableFrom -> inputPipe;
+	tableTo -> outputPipe = tableFrom -> outputPipe;
 
-	strcpy(tableTo->outRedirectFile,tableFrom->outRedirectFile);
-	tableTo->outRedirectFD = tableFrom->outRedirectFD;
-
-	strcpy(tableTo->inputFile,tableFrom->inputFile);
-	tableTo->inputPipe = tableFrom->inputPipe;
-	tableTo->outputPipe = tableFrom->outputPipe;
-
-	tableTo->pid = tableFrom->pid;
-	tableTo->skip = tableFrom->skip;
+	tableTo -> pid = tableFrom -> pid;
+	tableTo -> status = tableFrom -> status;
+	tableTo -> skip = tableFrom -> skip;
 
 	return;
 }
@@ -821,12 +822,15 @@ void printTablesList(processesList_t *head,processesList_t *tail){
 		for(i=0;i<tail->table->nOptions;i++){
 			printf("\t\t\toption[%d] = %s\n",i,tail->table->options[i]);
 		}
-		printf("\t\ttmpOutFile = %s\n\t\ttmpOutFD = %d\n",tail->table->tmpOutFile,tail->table->tmpOutFD);
-		printf("\t\ttmpErrFile = %s\n\t\ttmpErrFD = %d\n",tail->table->tmpErrFile,tail->table->tmpErrFD);
-		printf("\t\ttmpProcInfoFile = %s\n\t\ttmpProcInfoFD = %d\n",tail->table->tmpProcInfoFile,tail->table->tmpProcInfoFD);
-		printf("\t\toutRedirectFile = %s\n\t\toutRedirectFD = %d\n",tail->table->outRedirectFile,tail->table->outRedirectFD);
-		printf("\t\tinputPipe = %d\n\t\tinputFile = %s\n\t\toutputPipe = %d\n",tail->table->inputPipe,tail->table->inputFile,tail->table->outputPipe);
-		printf("\t\tpid = %d\n\t\tskip = %d\n",tail->table->pid,tail->table->skip);
+		printf("\t\ttmpOutFile = %s\n",tail -> table -> tmpOutFile);
+		printf("\t\ttmpErrFile = %s\n",tail -> table -> tmpErrFile);
+		printf("\t\ttmpProcInfoFile = %s\n",tail -> table -> tmpProcInfoFile);
+
+		printf("\t\toutRedirectFile = %s\n",tail -> table -> outRedirectFile);
+		printf("\t\tinputRedirectFile = %s\n",tail -> table -> inputFile);
+
+		printf("\t\tinputPipe = %d\n\t\toutputPipe = %d\n",tail -> table -> inputPipe, tail -> table -> outputPipe);
+		printf("\t\tpid = %d\n\t\tskip = %d\n\t\tstatus = %d\n",tail -> table -> pid, tail -> table -> skip, tail -> table -> status);
 
     tail = tail->next;
     counter ++;

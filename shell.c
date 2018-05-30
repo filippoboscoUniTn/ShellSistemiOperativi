@@ -50,7 +50,7 @@ int main(int argc, char **argv){
 	char *buffer; //buffer for holding part of the expression while tokenizing by ';'
 	char *args[3]; //arguments buffer for passing it to exec
 	char *path; //needed for holding the modified PATH environment variable value to be passed to the setenv()
-	char *buffer_path; //needed for catching actual PATH environment variable value
+	char *buffer_path = NULL; //needed for catching actual PATH environment variable value
 	pid_t pid; //needed when forking
 	//---------------------------------------------------------------------------------------------
 

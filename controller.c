@@ -95,6 +95,9 @@ int main(int argc,char **argv){
   clearTable(currentProcessTable);
   clearTable(nextProcessTable);
 
+  int tmpOutFD;
+  int tmpErrFD;
+  int tmpProcInfoFD;
 
   while( (currentPointer < nTokens) && !error ){
     //Leggo un token
@@ -112,42 +115,36 @@ int main(int argc,char **argv){
         strcpy(tmpName,"./tmp/");
         strcat(tmpName,(char*)currentToken->value);
         strcat(tmpName,"outFile_XXXXXX");
-        currentProcessTable->tmpOutFD = mkstemp_w(tmpName);
-        printf("before close tmpOutFD = %d\n",currentProcessTable->tmpOutFD );
-        close(currentProcessTable->tmpOutFD);
-        printf("after close tmpOutFD = %d\n",currentProcessTable->tmpOutFD );
+        tmpOutFD = mkstemp_w(tmpName);
         strcpy(currentProcessTable->tmpOutFile,tmpName);
+        close(tmpOutFD);
 
         strcpy(tmpName,"./tmp/");
         strcat(tmpName,currentToken->value);
         strcat(tmpName,"errFile_XXXXXX");
-        currentProcessTable->tmpErrFD = mkstemp_w(tmpName);
-        printf("before close tmpErrFD = %d\n",currentProcessTable->tmpErrFD );
-        close(currentProcessTable->tmpErrFD);
-        printf("after close tmpErrFD = %d\n",currentProcessTable->tmpErrFD );
+        tmpErrFD = mkstemp_w(tmpName);
         strcpy(currentProcessTable->tmpErrFile,tmpName);
+        close(tmpErrFD);
 
         strcpy(tmpName,"./tmp/");
         strcat(tmpName,currentToken->value);
         strcat(tmpName,"procInfoFile_XXXXXX");
-        currentProcessTable->tmpProcInfoFD = mkstemp_w(tmpName);
-        printf("before close tmpProcInfoFD = %d\n",currentProcessTable->tmpProcInfoFD );
-        close(currentProcessTable->tmpProcInfoFD);
-        printf("after close tmpProcInfoFD = %d\n",currentProcessTable->tmpProcInfoFD );
+        tmpProcInfoFD = mkstemp_w(tmpName);
         strcpy(currentProcessTable->tmpProcInfoFile,tmpName);
-
+        close(tmpProcInfoFD);
 
         currentProcessTable->nOptions = 0;
+
         break;
 
       case OPTION :
 
         printf("token : <%d,%s> riconosciuto come OPZIONE\n",currentToken->type,(char*)currentToken->value);
         if(currentProcessTable->nOptions > MAX_ARGUMENTS) {  exit_w(ERR_MAX_ARGS); }
-        printf("process table option[noption] = %s\n", currentProcessTable->options[currentProcessTable->nOptions]);
         if( strcmp(currentProcessTable->options[currentProcessTable->nOptions],"") != 0)  { exit_w(ERR_OPT_EXSTS); }
         strcpy(currentProcessTable->options[currentProcessTable->nOptions],currentToken->value);
         currentProcessTable->nOptions += 1;
+
         break;
 
       case OPERATOR :
@@ -160,12 +157,13 @@ int main(int argc,char **argv){
             printf("operatore riconosciuto come IN_REDIRECT\n");
             int nextPointer = currentPointer +1;
             token_t *fileToken = inputTokens[nextPointer];
-            if(fileToken->type != FILE_){exit_w(ERR_FILE_XPCTD);}
-            strcpy(currentProcessTable->inputFile,fileToken->value);
-            currentProcessTable->inputPipe = open_w(currentProcessTable->inputFile);
+            if(fileToken -> type != FILE_){exit_w(ERR_FILE_XPCTD);}
+            if(currentProcessTable -> inputPipe != -1){exit_w(ERR_INPUT_OVRITE);}
+            strcpy(currentProcessTable -> inputFile,fileToken -> value);
+            currentProcessTable -> inputPipe = open_w(currentProcessTable -> inputFile);
             currentPointer += 1;
-
             }
+
           break;
 
           case OUT_REDIRECT:{
@@ -173,53 +171,58 @@ int main(int argc,char **argv){
             printf("operatore riconosciuto come OUT_REDIRECT\n");
             int nextPointer = currentPointer +1;
             token_t *fileToken = inputTokens[nextPointer];
-            if(fileToken->type != FILE_){exit_w(ERR_FILE_XPCTD);}
-            strcpy(currentProcessTable->outRedirectFile,fileToken->value);
-            currentProcessTable->outRedirectFD = open_w(currentProcessTable->outRedirectFile);
+            if(fileToken -> type != FILE_){exit_w(ERR_FILE_XPCTD);}
+            strcpy(currentProcessTable -> outRedirectFile,fileToken -> value);
             currentPointer += 1;
-
           }
+
           break;
 
           case PIPE:{
             printf("operatore riconosciuto come PIPE\n");
-
-//------------------------------ALLOCAZIONE DELLA PIPE -----------------------
-//--------PER L'IPC DEGLI OPERANDI A DX E SX DELL OPERATORE DI PIPEE ---------
+            //---------------------- ALLOCAZIONE DELLA PIPE --------------------
+            //--- PER L'IPC DEGLI OPERANDI A DX E SX DELL OPERATORE DI PIPE ----
             pipesList_t *newPipe = malloc(sizeof(pipesList_t));
-            pipe_w(newPipe->pipe);
-            currentProcessTable->outputPipe = newPipe->pipe[WRITE];
-            nextProcessTable->inputPipe = newPipe->pipe[READ];
+            pipe_w(newPipe -> pipe);
+            currentProcessTable -> outputPipe = newPipe -> pipe[WRITE];
+            nextProcessTable -> inputPipe = newPipe -> pipe[READ];
             pushToPipesList(&pipesHead,&pipesTail,newPipe);
-//---------------------------- END -------------------------------------------
+            //---------------------------- END ---------------------------------
 
 
 
-            //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
+            //------------ CONTROLLO SE IL COMANDO VA ESEGUITO -----------------
             // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
             //              e l'operando a SX di quest'ultimo ha fallito
-            if(currentProcessTable->skip == FALSE){
+            if(currentProcessTable -> skip == FALSE){
 
               //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
-              currentProcessTable->pid = fork();
-              if(currentProcessTable->pid == 0){
+              currentProcessTable -> pid = fork();
+              if(currentProcessTable -> pid == 0){
 
                 //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                //-------------------------- & ---------------------------------
+                //---------- CHIUSURA DEL LATO READ DELLA PIPE -----------------
+                //----------------- SU CUI IL PROCESSO SCRIVE ------------------
                 char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
-                setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
-                setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
-                setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
-                setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
-                setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+                setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);
+                setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);
+                setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);
+                setenv_wi(EV_PIPE_IN,currentProcessTable -> inputPipe);
+                setenv_wi(EV_PIPE_OUT,currentProcessTable -> outputPipe);
+                close(currentProcessTable -> outputPipe -1);//Chiusura lato READ della pipe su cui il processo scrive
+
+                if( (currentProcessTable -> inputPipe != -1) && (strcmp(currentProcessTable -> inputFile, "") == 0) ){//Se è definita una pipe di input per il  processo e NON è definito un file di input
+                  //NB il controllo sulla presenza di un input file serve per garantire che inputPipe + 1 sia il lato WRITE di una pipe
+                  close(currentProcessTable -> inputPipe +1); //vado a chiudere anche il lato write di quella pipe
+                }
+                close( currentProcessTable -> outputPipe -1); //Chiusura lato READ della pipe di output
                 //---------------------------- END -----------------------------
 
                 execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
-              else if(currentProcessTable->pid > 0){}
-              else{
-                exit_w(ERR_FORK_FAIL);
-              }
+              else if(currentProcessTable -> pid < 0){exit_w(ERR_FORK_FAIL);}
               //---------------------------- END -------------------------------
 
 
@@ -230,12 +233,12 @@ int main(int argc,char **argv){
 
             //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
             processesList_t *newTable = malloc(sizeof(processesList_t));
-            newTable->table = malloc(sizeof(processTable_t));
-            copyTable(newTable->table,currentProcessTable);
+            newTable -> table = malloc(sizeof(processTable_t));
+            copyTable(newTable -> table,currentProcessTable);
             pushToTablesList(&processesListHead,&processesListTail,newTable);
             copyTable(currentProcessTable,nextProcessTable);
             clearTable(nextProcessTable);
-            //---------------------------- END --------------------------------
+            //---------------------------- END ---------------------------------
 
             }
             break;
@@ -245,45 +248,52 @@ int main(int argc,char **argv){
             //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
             // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
             //              e l'operando a SX di quest'ultimo ha fallito
-            if(currentProcessTable->skip == FALSE){
+            if(currentProcessTable -> skip == FALSE){
 
               //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
-              currentProcessTable->pid = fork();
-              if(currentProcessTable->pid == 0){
+              currentProcessTable -> pid = fork();
+              if(currentProcessTable -> pid == 0){
 
                 //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                //------------------------------- & ----------------------------
+                //----- CHIUSURA LATO WRITE NEL CASO SIA DEFINITA UNA PIPE DI INPUT
                 char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
                 setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
                 setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
                 setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+
+                if(currentProcessTable -> inputPipe != -1){//Se è definita una pipe di input per il  processo
+                  close(currentProcessTable -> inputPipe +1); //vado a chiudere anche il lato write di quella pipe
+                }
                 //---------------------------- END -----------------------------
 
                 execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
-              else if(currentProcessTable->pid > 0){
+              else if(currentProcessTable -> pid > 0){
                 int wstatus;
-                waitpid_w(currentProcessTable->pid,&wstatus,0);
+                waitpid_w(currentProcessTable -> pid,&wstatus,0);
                 if(WIFEXITED(wstatus)){
                   int status = WEXITSTATUS(wstatus);
                   if(status < 0){
                     nextProcessTable->skip = TRUE;
                   }
+                  currentProcessTable -> status = wstatus;
                 }
               }
               else{
                 exit_w(ERR_FORK_FAIL);
               }
             }
-            else if(currentProcessTable->skip == TRUE){
-              nextProcessTable->skip = currentProcessTable->skip && FALSE;
+            else if(currentProcessTable -> skip == TRUE){
+              nextProcessTable -> skip = currentProcessTable -> skip && FALSE;
             }
             //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
             processesList_t *newTable = malloc(sizeof(processesList_t));
-            newTable->table = malloc(sizeof(processTable_t));
-            copyTable(newTable->table,currentProcessTable);
+            newTable -> table = malloc(sizeof(processTable_t));
+            copyTable(newTable -> table,currentProcessTable);
             pushToTablesList(&processesListHead,&processesListTail,newTable);
             copyTable(currentProcessTable,nextProcessTable);
             clearTable(nextProcessTable);
@@ -297,32 +307,39 @@ int main(int argc,char **argv){
             //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
             // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
             //              e l'operando a SX di quest'ultimo ha fallito
-            if(currentProcessTable->skip == FALSE){
+            if(currentProcessTable -> skip == FALSE){
 
               //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
-              currentProcessTable->pid = fork();
-              if(currentProcessTable->pid == 0){
+              currentProcessTable -> pid = fork();
+              if(currentProcessTable -> pid == 0){
 
                 //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                //------------------------------- & ----------------------------
+                //----- CHIUSURA LATO WRITE NEL CASO SIA DEFINITA UNA PIPE DI INPUT
                 char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
                 setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
                 setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
                 setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+
+                if(currentProcessTable -> inputPipe != -1){//Se è definita una pipe di input per il  processo
+                  close(currentProcessTable -> inputPipe +1); //vado a chiudere anche il lato write di quella pipe
+                }
                 //---------------------------- END -----------------------------
 
                 execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
-              else if(currentProcessTable->pid > 0){
+              else if(currentProcessTable -> pid > 0){
                 int wstatus;
-                waitpid_w(currentProcessTable->pid,&wstatus,0);
+                waitpid_w(currentProcessTable -> pid,&wstatus,0);
                 if(WIFEXITED(wstatus)){
                   int status = WEXITSTATUS(wstatus);
                   if(status == 0){
-                    nextProcessTable->skip = TRUE;
+                    nextProcessTable -> skip = TRUE;
                   }
+                  currentProcessTable -> status = wstatus;
                 }
               }
               else{
@@ -333,13 +350,13 @@ int main(int argc,char **argv){
             }
             //---------------------------- END ---------------------------------
 
-            else if(currentProcessTable->skip == TRUE){
-              nextProcessTable->skip = currentProcessTable->skip || FALSE;
+            else if(currentProcessTable -> skip == TRUE){
+              nextProcessTable -> skip = currentProcessTable -> skip || FALSE;
             }
             //----------- INSERIMENTO IN LISTA DELLA TAVOLA DEL PROCESSO -------
             processesList_t *newTable = malloc(sizeof(processesList_t));
-            newTable->table = malloc(sizeof(processTable_t));
-            copyTable(newTable->table,currentProcessTable);
+            newTable -> table = malloc(sizeof(processTable_t));
+            copyTable(newTable -> table,currentProcessTable);
             pushToTablesList(&processesListHead,&processesListTail,newTable);
             copyTable(currentProcessTable,nextProcessTable);
             clearTable(nextProcessTable);
@@ -363,25 +380,32 @@ int main(int argc,char **argv){
       //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
                   // Ad esempio se in precedenza ho incontrato un operatore booleano (e.g. && )
                   //              e l'operando a SX di quest'ultimo ha fallito
-                  if(currentProcessTable->skip == FALSE){
+                  if(currentProcessTable -> skip == FALSE){
 
                     //-------- FORK DI UN FIGLIO PER L'ESECUZIONE DEL LOGGER ---------
-                    currentProcessTable->pid = fork();
-                    if(currentProcessTable->pid == 0){
+                    currentProcessTable -> pid = fork();
+                    if(currentProcessTable -> pid == 0){
 
                       //-------- PREPARAZIONE AMBIENTE ED ARGOMENTI PER L'EXEC -------
+                      //------------------------------- & ----------------------------
+                      //----- CHIUSURA LATO WRITE NEL CASO SIA DEFINITA UNA PIPE DI INPUT
                       char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
-                      setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
-                      setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
-                      setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
-                      setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
-                      setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
+                      setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);
+                      setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);
+                      setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);
+                      setenv_wi(EV_PIPE_IN,currentProcessTable -> inputPipe);
+                      setenv_wi(EV_PIPE_OUT,currentProcessTable -> outputPipe);
+
+                      if(currentProcessTable -> inputPipe != -1 && strcmp(currentProcessTable -> inputFile,"") == 0){//Se è definita una pipe di input per il  processo e NON è definito un file di input
+                        //NB il controllo sulla presenza di un input file serve per garantire che inputPipe + 1 sia il lato WRITE di una pipe
+                        close(currentProcessTable -> inputPipe +1); //vado a chiudere anche il lato write di quella pipe
+                      }
                       //---------------------------- END -----------------------------
 
                       execvp(LOGGER_EXEC_PATH,exec_argv);
                       exit_w(ERR_EXEC_FAIL);
                     }
-                    else if(currentProcessTable->pid > 0){}
+                    else if(currentProcessTable -> pid > 0){}
                     else{
                       exit_w(ERR_FORK_FAIL);
                     }
@@ -413,6 +437,22 @@ int main(int argc,char **argv){
   while ( ( wpid = wait(&childStatus) ) > 0){
       printf("wpid = %d\n",wpid);
       printf("childStatus = %d\n",childStatus);
+      processesList_t *tailTmp = processesListTail; //Lista temporanea per la ricerca della tabella del figlio che ha terminato
+      while(tailTmp != NULL){ //Scorro la lista finche non trovo una tabella con pid uguale al pid del processo appena terminato
+
+        if(tailTmp -> table -> pid == wpid){
+          //Se sono definite pipe le chiudo
+          if( tailTmp -> table -> inputPipe != -1){
+            close_w(tailTmp -> table -> inputPipe);
+          }
+          if(tailTmp -> table -> outputPipe != -1){
+            close_w(tailTmp -> table -> outputPipe);
+          }
+          //Salvo lo stato del processo in tabella
+          tailTmp -> table -> status = childStatus;
+        }
+        tailTmp = tailTmp -> next;
+      }
   }
   printf("all children are done\n");
 //--------------------------------- ATTESA DEI FIGLI ---------------------------------
@@ -424,9 +464,11 @@ int main(int argc,char **argv){
   char * outLogFile;
   char * errLogFile;
   char * uniLogFile;
+  int maxOutputLength;
   outLogFile = getenv(EV_SHELL_STDOUTFILE);
   errLogFile = getenv(EV_SHELL_STDERRFILE);
   uniLogFile = getenv(EV_SHELL_UNIOUTFILE);
+  maxOutputLength = atoi(getenv(EV_MAXLEN));
 //--------------------------- LETTURA VARIABILI D'AMBIENTE ---------------------------
 //-------------------------------------- END -----------------------------------------
 
@@ -487,15 +529,12 @@ int main(int argc,char **argv){
     //Scrittura del nome del comando e delle opzioni utilizzate nell'invocazione
     //Controllando sempre che file sono stati definiti dall'utente per la scrittura
     if(outLogFile != NULL){
-      printf("in out if\n" );
       //Se è la prima opzione scrivo anche il nome del comando
-      printf("printing : %s to out file\n",processesListTail->table-> command);
-
         byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
         printf("byteWritten = %ld to out\n",byteWritten);
+
     }
     if(errLogFile != NULL){
-      printf("printing : %s to err file\n",processesListTail->table-> command);
       //Se è la prima opzione scrivo anche il nome del comando
         byteWritten = write_w(errLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
         printf("byteWritten = %ld to err\n",byteWritten);
@@ -503,8 +542,6 @@ int main(int argc,char **argv){
     }
     if(uniLogFile != NULL){
       //Se è la prima opzione scrivo anche il nome del comando
-      printf("printing : %s to uni file\n",processesListTail->table-> command);
-
         byteWritten = write_w(uniLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
         printf("byteWritten = %ld to uni\n",byteWritten);
 
@@ -620,7 +657,6 @@ int main(int argc,char **argv){
 //------------------------------------ END -------------------------------------
 //------------------------------------ && --------------------------------------
 //------------------------------------ END -------------------------------------
-
 
   printTablesList(processesListHead,processesListTail);
   printPipesList(pipesHead,pipesTail);

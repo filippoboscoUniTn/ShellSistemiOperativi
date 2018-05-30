@@ -46,29 +46,29 @@ typedef struct token_t{
 }token_t;
 
 typedef struct processTable_t{
-
+	//Stringa che rappresenta il comando da eseguire
 	char command [MAX_CMD_LEN];
-
+	//Numero di opzioni e array di stringhe rappresentanti le opzioni del comando
 	int nOptions;
 	char options [MAX_ARGUMENTS] [MAX_ARG_LEN];
 
-	char tmpOutFile [MAX_FILE_NAME_LEN];
-	int tmpOutFD;
+	//File temporanei per i log parziali
+	char tmpOutFile [MAX_FILE_NAME_LEN]; //File di OUTPUT
+	char tmpErrFile [MAX_FILE_NAME_LEN]; //File di ERROR
+	char tmpProcInfoFile [MAX_FILE_NAME_LEN]; //File contenete le informazioni del processo relativo al comando
 
-	char tmpErrFile [MAX_FILE_NAME_LEN];
-	int tmpErrFD;
-
-	char tmpProcInfoFile [MAX_FILE_NAME_LEN];
-	int tmpProcInfoFD;
-
+	//Nome del File di redirezione dell'output.
+	//NB Allo stato corrente del progetto la shell supporta al massimo un operatore di redirezione di output "statico" (i.e. viene popolato a terminazione dei processi relativi alla stringa dei comandi passata al controller)
 	char outRedirectFile [MAX_FILE_NAME_LEN];
-	int outRedirectFD;
 
+	//Nome del File di redirezione dell'input
 	char inputFile [MAX_FILE_NAME_LEN];
+
 	int inputPipe;
 	int outputPipe;
 
 	int pid;
+	int status;
 	bool skip;
 
 }processTable_t;

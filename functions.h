@@ -42,6 +42,7 @@ void setenv_wi(char * ,int);
 void waitpid_w(int ,int *,int);
 int mkstemp_w(char *);
 int open_w(char *);
+int close_w(int );
 
 char ** getExecArguments(char *, processTable_t *);
 void printToken(token_t*);
