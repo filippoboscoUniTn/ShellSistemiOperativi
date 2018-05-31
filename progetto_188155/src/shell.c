@@ -11,19 +11,18 @@
 	If no parameters specified, it logs nothing, just executes
 */
 
-#include "std_libraries.h"
-#include "macros.h"
-#include "types.h"
-#include "functions.h"
+#include "libs/std_libraries.h"
+#include "libs/macros.h"
+#include "libs/types.h"
+#include "libs/functions.h"
 
 //flag for the shell, it continues to listen until this flag it's put FALSE
-volatile sig_atomic_t not_interrupted = TRUE; //put FALSE by the sigint_handler (when the user type the character sequence)
+volatile sig_atomic_t interrupted = FALSE; //put FALSE by the sigint_handler (when the user type the character sequence)
 
 //customized SIGINT handler
 void sigint_handler(int signum){
 
-	//not_interrupted = FALSE;
-	kill(0, SIGABRT);
+	interrupted = TRUE;
 	return;
 }
 
@@ -51,6 +50,8 @@ int main(int argc, char **argv){
 	char *path; //needed for holding the modified PATH environment variable value to be passed to the setenv()
 	char *buffer_path = NULL; //needed for catching actual PATH environment variable value
 	pid_t pid; //needed when forking
+	int finished_executing = FALSE;
+	int quitted = FALSE;
 	//---------------------------------------------------------------------------------------------
 
 
@@ -142,71 +143,78 @@ int main(int argc, char **argv){
 
 	printf("Shell started :)\ntype '/quit' to exit.\n\n");
 
-	printf("BoGosh> "); //prompt
-	fgets(input, CMD_EXP_BUFF_SIZE, stdin); //saves the input in the buffer to be tokenized
+	while( !quitted ){
 
-	while( strcmp(input, "/quit\n") != 0 ){
+		finished_executing = FALSE;
+		interrupted = FALSE;
+
 		fflush(stdin); //flushing stream for cleaning the input
 		fflush(stdout);
 		printf("BoGosh> "); //prompt
 		fgets(input, CMD_EXP_BUFF_SIZE, stdin); //saves the input in the buffer to be tokenized
 
-		//debug
-
-		buffer = strtok(input, ";"); //gets the part of the input before the first ';' if present
-		while(buffer != NULL){
-
-			//Rimozione del new line dalla stringa da passare al controller
-			int bufferLen = strlen(buffer);
-			if( bufferLen > 0 && buffer[bufferLen-1] == '\n'){buffer[bufferLen-1] = '\0';}
-
-			//---------- FORK ----------
-			//child will exec the controller
-			//father will continue parsing and forking
-			pid = fork();
-
-			//---------- CHILD ----------
-			if(pid == 0){
-
-
-				//arguments vector to be passed to the exec
-				args[0] = malloc(sizeof(char)*strlen(CONTROLLER_EXEC_NAME)+1);
-				strcpy(args[0],CONTROLLER_EXEC_NAME);
-				args[1] = malloc( sizeof(char)*(strlen(buffer)+1) );
-				strcpy(args[1],buffer);
-				args[2] = NULL; //null terminated vector
-
-				//debug
-
-
-
-
-				fflush(stdout);
-
-				execvp(CONTROLLER_EXEC_PATH, args);
-
-				//debug
-
-				perror("execvp");
-
-				exit(EXIT_SUCCESS);
-			}
-
-			//---------- FATHER ----------
-			else if(pid > 0){
-				buffer = strtok(NULL, ";"); //catches the next commands expression
-			}
-
-			//---------- ERROR FORKING ----------
-			else{
-
-				exit(EXIT_FAILURE);
-			}
+		if( strcmp(input, "/quit\n") == 0 ){
+			quitted = TRUE;
 		}
 
-		wait(NULL); //waits all children to finish before requesting another input
-		//fflush(stdout); //forces all output to be printed
+		else{
+			buffer = strtok(input, ";"); //gets the part of the input before the first ';' if present
+			while(!interrupted && !finished_executing){
+				while(buffer != NULL){
 
+					//Rimozione del new line dalla stringa da passare al controller
+					int bufferLen = strlen(buffer);
+					if( bufferLen > 0 && buffer[bufferLen-1] == '\n'){buffer[bufferLen-1] = '\0';}
+
+					//---------- FORK ----------
+					//child will exec the controller
+					//father will continue parsing and forking
+					pid = fork();
+
+					//---------- CHILD ----------
+					if(pid == 0){
+
+
+						//arguments vector to be passed to the exec
+						args[0] = malloc(sizeof(char)*strlen(CONTROLLER_EXEC_NAME)+1);
+						strcpy(args[0],CONTROLLER_EXEC_NAME);
+						args[1] = malloc( sizeof(char)*(strlen(buffer)+1) );
+						strcpy(args[1],buffer);
+						args[2] = NULL; //null terminated vector
+
+						//debug
+
+
+
+
+						fflush(stdout);
+
+						execvp(CONTROLLER_EXEC_PATH, args);
+
+						//debug
+
+						perror("Error calling controller");
+
+						exit(EXIT_SUCCESS);
+					}
+
+					//---------- FATHER ----------
+					else if(pid > 0){
+						buffer = strtok(NULL, ";"); //catches the next commands expression
+					}
+
+					//---------- ERROR FORKING ----------
+					else{
+
+						exit(EXIT_FAILURE);
+					}
+				}
+				finished_executing = TRUE;
+			}
+
+			wait(NULL); //waits all children to finish before requesting another input
+			fflush(stdout); //forces all output to be printed
+		}
 	}; //listen for inputs from stdin until SIGINT
 
 	//----------------------------- COMMANDS EXPRESSIONS LISTENING end ----------------------------

@@ -21,11 +21,10 @@
 		6) when the child finishes, the father flushes the buffers, closes output streams, notify the controller and then exit
 */
 
-#include "macros.h"
-#include "std_libraries.h"
-#include "types.h"
-#include "errno.h"
-#include "functions.h"
+#include "libs/macros.h"
+#include "libs/std_libraries.h"
+#include "libs/types.h"
+#include "libs/functions.h"
 
 
 //flag for the logger, it continues to log until this flag it's put FALSE
@@ -161,11 +160,13 @@ int main(int argc, char **argv){
 	//----------------------------------- STDERR HANDLING start -----------------------------------
 	//if we don't have to log the stderr, we don't redirect anything
 	//instead, if we have to log it, we redirect the executed command's stderr to the log's file descriptor
+	if(loginfo -> err_pathname == NULL){
+		link_pipe(STDERR_FILENO, STDOUT_FILENO);
+	}
 	if(loginfo -> err_pathname != NULL){
 		loginfo -> errf = open(loginfo -> err_pathname, O_WRONLY | O_CREAT, 0755); //opens stderr partial log file's FD
 
 		//debug
-
 
 		link_pipe(STDERR_FILENO, loginfo -> errf); //links the executed command stderr to the logfile's FD
 	}

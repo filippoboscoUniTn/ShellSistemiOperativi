@@ -32,10 +32,10 @@
 */
 
 //------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------------
-#include "std_libraries.h"
-#include "macros.h"
-#include "types.h"
-#include "functions.h"
+#include "libs/std_libraries.h"
+#include "libs/macros.h"
+#include "libs/types.h"
+#include "libs/functions.h"
 //------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------------
 //-------------------------------------- END -----------------------------------------
 
