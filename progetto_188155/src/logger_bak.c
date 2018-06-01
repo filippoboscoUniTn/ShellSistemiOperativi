@@ -61,20 +61,20 @@ int main(int argc, char **argv){
 
 	//----------------------------------- VARIABLES DEFINITIONS -----------------------------------
 	char *cmd; //command's name to be passed to the exec
-
 	//allocating argc elements of type char*
 	//argc - 1 for holding all the parameters + 1 for NULL pointer
 	char *args[argc]; //command's arguments to be passed to the exec
 
-	pid_t pid; //needed when forking
 	loginfo_t *loginfo; //structure for holding logging informations passed in the environment by the controller
 	int pipes[2]; //buffer pipe
 	char *buffer = NULL; //buffer for temporarily holding (a part) of the executed command's stdout
+
 	ssize_t readb, writtenb; //needed for saving return values of read() and write() syscalls
 
 	char *env_buffer; //buffer for temporarily holding the result of getenv()
-	FILE *proc_infof; //file stream for writing the process information
-	int child_exit_status; //needed for exiting, the logger exits with the same status of the executed command (for notify the controller)
+	FILE *proc_infof;
+
+	int child_exit_status;
 	//---------------------------------------------------------------------------------------------
 
 
@@ -155,6 +155,7 @@ int main(int argc, char **argv){
 	//if we don't have to log the stderr, we don't redirect anything
 	//instead, if we have to log it, we redirect the executed command's stderr to the log's file descriptor
 	if(loginfo -> err_pathname == NULL){
+		//link_pipe(STDERR_FILENO, STDOUT_FILENO);
 		dup2(STDOUT_FILENO, STDERR_FILENO);
 	}
 	if(loginfo -> err_pathname != NULL){
@@ -169,42 +170,10 @@ int main(int argc, char **argv){
 
 	//----------------------------------- STDOUT HANDLING start -----------------------------------
 	//if we don't have to save the output we just redirect stdout to pipe_out
-	//if we have to log the stdout, we redirect it to the output pipe
+	//if we don't have to log the stdout, we just redirect it to the output pipe
 	if(loginfo -> out_pathname == NULL){
-		fprintf(stdout, "out_pathname = NULL\n");
 
-		//dup2(loginfo -> pipe_out, STDOUT_FILENO); //links the executed command stdout to pipe_out
-
-		//---------- FORK ----------
-		//child has to link pipes and execute the command
-		//father has to wait
-		pid = fork(); //pid needed for separing father-child logics
-
-		//---------- CHILD ----------
-		if(pid == 0){
-
-			dup2(loginfo -> pipe_in, STDIN_FILENO); //links stdin to the pipe_it before calling exec
-			dup2(loginfo -> pipe_out, STDOUT_FILENO); //links stdout to the pipe_out before calling exec
-
-			execvp(cmd, args); //executes the command with given parameters
-
-			fprintf(stdout, "Error: command not found.\n");
-			free_resources(cmd, args, argc, buffer, loginfo);
-			exit(EXIT_FAILURE);
-		}
-
-		//---------- FATHER ----------
-		//it has to log the output
-		else if(pid > 0){
-
-			wait(NULL); //waits the child and then continues executing logic
-		}
-
-		//---------- ERROR FORKING ----------
-		else{
-			free_resources(cmd, args, argc, buffer, loginfo);
-			exit(EXIT_FAILURE);
-		}
+		dup2(loginfo -> pipe_out, STDOUT_FILENO); //links the executed command stdout to pipe_out
 	}
 
 	//if we have to log the stdout
@@ -248,7 +217,7 @@ int main(int argc, char **argv){
 		//---------- FORK ----------
 		//child has to link pipes and execute the command
 		//father has to log the output
-		pid = fork(); //pid needed for separing father-child logics
+		pid_t pid = fork(); //pid needed for separing father-child logics
 
 		//---------- FATHER ----------
 		//it has to log the output
@@ -363,9 +332,8 @@ int main(int argc, char **argv){
 
 	//-------------------------------- PROCESS INFO HANDLING end ----------------------------------
 
-	if (WIFEXITED(child_exit_status)){
-        child_exit_status = WEXITSTATUS(child_exit_status);
-	}
+
+
 
 
 

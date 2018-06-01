@@ -7,7 +7,36 @@
 //keeps the main logic clean and because it can be called multiple times
 //called in argument error cases and when argument is -h
 void print_usage( char* _prog_name ){
-	printf("usage: %s [-o | --outfile <file>] [-e | --errfile <file>] [-m | --maxlen <value>]\n	", _prog_name);
+	printf("usage: %s [option [value] ]\n\n", _prog_name);
+	printf("Options can be used to modify shell's behaviour.\n");
+	printf("Without defined options, the shell will only execute commands expressions.\n");
+	printf("OPTIONS:\n\n");
+
+	//-h | --help
+	printf("[%s | %s] : displays this usage message.\n", ARG_HELP_SS, ARG_HELP_SL);
+
+	//-out | --outfile
+	printf("[%s | %s] <file> : defines the file in which to save commands standard output\n", ARG_STDOUTFILE_SS, ARG_STDOUTFILE_SL);
+	//-err | --errfile
+	printf("[%s | %s] <file> : defines the file in which to save commands standard error\n", ARG_STDERRFILE_SS, ARG_STDERRFILE_SL);
+	//-o | --output
+	printf("[%s | %s] <file> : defines the file in which to save both commands standard output and standard error\n", ARG_UNIOUTFILE_SS, ARG_UNIOUTFILE_SL);
+	//-p | --path
+	printf("[%s | %s] <path> : tells the shell where to look for searching other commands.\nMultiple paths are allowed, just separate them with ':'\n", ARG_PATH_SS, ARG_PATH_SL);
+	//-m | --maxlen
+	printf("[%s | %s] <value> : defines the max lenght of the command standard output/error written in the log file\nIf the command's output is longer than <value>, the output will be truncated.\n", ARG_MAXLEN_SS, ARG_MAXLEN_SL);
+	//--noinfo
+	printf("[%s] : tells the shell to don't print any command's process information in the log file.\n", ARG_PROC_INFO_SL);
+	//--noerrno
+	printf("[%s] : tells the shell to don't print command's errno in the log file.\n", ARG_ERRNO_SL);
+	//--nopid
+	printf("[%s] : tells the shell to don't print command's PID in the log file.\n", ARG_PID_SL);
+	//--nouid
+	printf("[%s] : tells the shell to don't print command's UID in the log file.\n", ARG_UID_SL);
+	//--nostatus
+	printf("[%s] : tells the shell to don't print command's status in the log file.\n\n", ARG_STATUS_SL);
+
+	return;
 }
 
 //needed by the shell
