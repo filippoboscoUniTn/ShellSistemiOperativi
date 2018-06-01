@@ -91,39 +91,6 @@ int main(int argc, char **argv){
 	//---------------------------------------------------------------------------------------------
 
 
-	//debug
-
-
-	/*
-	//these variables will be put in the environment by the controller
-	char *t_out = my_malloc( 200 );
-	strcpy(t_out, "/Users/nik/Desktop/stdout/");
-	strcat(t_out, cmd);
-	strcat(t_out, ".txt");
-	char *t_err = my_malloc( 200 );
-	strcpy(t_err, "/Users/nik/Desktop/stderr/");
-	strcat(t_err, cmd);
-	strcat(t_err, ".txt");
-	char *t_procinfo = my_malloc( 200 );
-	strcpy(t_procinfo, "/Users/nik/Desktop/proc_info/");
-	strcat(t_procinfo, cmd);
-	strcat(t_procinfo, ".txt");
-
-	//debug
-
-
-	setenv(EV_MAXLEN, "200", OVERWRITE);
-	setenv(EV_STDOUTFILE, t_out, OVERWRITE);
-	setenv(EV_STDERRFILE, t_err, OVERWRITE);
-	setenv(EV_PINFO_OUTFILE, t_procinfo, OVERWRITE);
-	setenv(EV_PIPE_IN, "0", OVERWRITE);
-	setenv(EV_PIPE_OUT, "1", OVERWRITE);
-	*/
-
-	//debug
-
-
-
 
 	//------------------------------ ENVIRONMENT VARIABLES CATCHING -------------------------------
 	//here we catch all the logging informations passed by the controller
@@ -171,7 +138,6 @@ int main(int argc, char **argv){
 	//if we don't have to save the output we just redirect stdout to pipe_out
 	//if we have to log the stdout, we redirect it to the output pipe
 	if(loginfo -> out_pathname == NULL){
-		fprintf(stdout, "out_pathname = NULL\n");
 
 		//dup2(loginfo -> pipe_out, STDOUT_FILENO); //links the executed command stdout to pipe_out
 
@@ -216,8 +182,6 @@ int main(int argc, char **argv){
 		//---------- ERROR CREATING PIPE ----------
 		//if error creating pipe exits
 		if(pipe(pipes) == -1){
-			//debug
-			fprintf(stdout, "cannot create pipe\n");
 
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);

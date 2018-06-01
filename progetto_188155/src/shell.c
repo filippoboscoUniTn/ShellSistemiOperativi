@@ -112,13 +112,12 @@ int main(int argc, char **argv){
 						path = strcat(path, buffer_path); //appending the rest of the PATH value
 
 						setenv(EV_PATH, path, OVERWRITE); //setting all the values in the environment
-						printf("set '%s' = '%s'\n", EV_PATH, path);
+						printf("set PATH to -> '%s'\n", path);
 					}
 					//if every other argument
 					else{
 						env_var_key = get_envstring(arg_code, env_var_key); //catching actual parameter environment variable id
 						setenv(env_var_key, argv[curr_arg], OVERWRITE); //setting the environment variable with the parameter's value
-						printf("set '%s' = '%s'\n", env_var_key, argv[curr_arg]);
 					}
 
 					break;
@@ -128,7 +127,6 @@ int main(int argc, char **argv){
 				case ARG_TYPE_N:
 					env_var_key = get_envstring(arg_code, env_var_key); //catching actual parameter environment variable id
 					setenv(env_var_key, EV_FALSE, OVERWRITE); //setting the environment variable with FALSE (if no parameter the variable is assumed TRUE)
-					printf("set '%s'\n", env_var_key);
 
 					break;
 
