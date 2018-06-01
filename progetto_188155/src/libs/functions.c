@@ -77,7 +77,7 @@ char* get_envstring(argcode_t _argcode, char *_destination){
 	}
 
 	if(_argcode == ARG_STDOUTFILE_C){
-		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_STDOUTFILE)) );
+		_destination = malloc( sizeof(char) * (strlen(EV_SHELL_STDOUTFILE)+1) );
 		strcpy(_destination, EV_SHELL_STDOUTFILE);
 	}
 
@@ -639,10 +639,6 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
     while( (charPointer<MAX_CMD_LEN) && (currentChar != '\0') && (currentChar != ' ') ){
       if(VERBOSE){printf("currentChar = %c\n",currentChar);}
       subString[subStringPointer] = currentChar;
-			// if(strcmp(currentChar,"(") == 0 || strcmp(currentChar,")") == 0 ){
-			// 	exit_w(ERR_OP_NOT_SUPPORTED);
-			// }
-
       subStringPointer += 1;
       charPointer += 1;
       currentChar = rawInput[charPointer];
@@ -693,7 +689,7 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
       //Match as fileName for redirect
       if(lteq_redirect){
         if(VERBOSE){printf("matching ' %s ' as file Name\n",words[wordsCounter]);}
-        tokenTmp -> type = ERR_REDIR_FILEXPCTD;
+        tokenTmp -> type = REDIR_FILE;
         tokenTmp -> value = malloc(MAX_FILE_NAME_LEN*sizeof(char));
         strcpy((tokenTmp -> value),words[wordsCounter]);
         tokenArray[(nTokens)] = tokenTmp;
@@ -747,7 +743,6 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
 	*tokenNumber = nTokens;
   return tokenArray;
 }
-
 
 void clearTable(processTable_t *table){
 
