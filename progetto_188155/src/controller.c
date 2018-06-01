@@ -151,18 +151,12 @@ clearTable(nextProcessTable);
 
   //----------------------- LETTURA VARIABILI D'AMBIENTE -----------------------
   outLogFile = getenv(EV_SHELL_STDOUTFILE);
-  printf("getenv(EV_SHELL_STDOUTFILE) ===== %s\n",getenv(EV_SHELL_STDOUTFILE) );
   errLogFile = getenv(EV_SHELL_STDERRFILE);
   uniLogFile = getenv(EV_SHELL_UNIOUTFILE);
 
   writeProcInfo = getenv(EV_PROC_INFO); //Se è definita vanno scritte anche le info del processo
   maxOutputLength = getenv(EV_MAXLEN);
 
-  printf("outLogFile = %s\n",outLogFile);
-  printf("errLogFile = %s\n",errLogFile);
-  printf("uniLogFile = %s\n", uniLogFile);
-  printf("writeProcInfo = %s\n", writeProcInfo);
-  printf("maxOutputLength = %s\n",maxOutputLength);
   if(maxOutputLength != NULL){
     maxOutput = atoi(maxOutputLength);
   }
@@ -203,7 +197,6 @@ clearTable(nextProcessTable);
 
         //-------------------- CREAZIONE FILE TEMPORANEI -----------------------
         if(outLogFile != NULL || uniLogFile != NULL){
-          printf("creazione file di log tmp out");
           strcpy(tmpName,"tmp/");
           strcat(tmpName,"outFile_XXXXXX");
           tmpOutFD = mkstemp_w(tmpName);
@@ -616,7 +609,6 @@ clearTable(nextProcessTable);
     lseek_w(outLogFD,0,SEEK_END);
    }
   if(errLogFile != NULL){
-    printf("opening errLogFile!\n" );
      errLogFD = open_w(errLogFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
      lseek_w(errLogFD,0,SEEK_END);
     }
@@ -763,7 +755,7 @@ clearTable(nextProcessTable);
 
 
     //------------------ LETTURA FILE TMP CONTENENTE PROC. INFO ----------------------
-        if(writeProcInfo == NULL){
+        if(!writeProcInfo){
           //Riposiziono l'indice di lettura per il file temporaneo
           lseek_w(tmpProcInfoFD,0,SEEK_SET);
           while( (byteRead = read_w(tmpProcInfoFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
@@ -779,7 +771,7 @@ clearTable(nextProcessTable);
     //-------------------------------------- END -----------------------------------
 
 
-    if(outLogFile != NULL){
+    if(outLogFile){
       byteWritten = write_w(outLogFD,FRM_FLD_SEPARATOR, strlen(FRM_FLD_SEPARATOR));
       byteWritten = write_w(outLogFD,FRM_PROC_OUT, strlen(FRM_PROC_OUT));
       byteWritten = write_w(outLogFD,"\n\n",strlen("\n\n"));
@@ -800,7 +792,6 @@ clearTable(nextProcessTable);
 
     //---------------------- LETTURA FILE TMP ASSOCIATO A STD. OUT -----------------
       if(outLogFile != NULL || uniLogFile != NULL){
-        printf("reading out file\n");
         lseek_w(tmpOutFD,0,SEEK_SET);//Riposiziono l'indice di lettura per il file temporaneo
         while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
         //Controllo dove scrivere le informazioni e le scrivo
@@ -821,11 +812,8 @@ clearTable(nextProcessTable);
           }
         }
         if(uniLogFile != NULL){
-          printf("writing out to uniLogFile\n" );
           if(maxOutput == -1){
-            printf("no MAX \n readBuffer = %s\nbyteRead = %ld\n", readBuffer, byteRead);
             byteWritten = write_w(uniLogFD,readBuffer,byteRead);
-            printf("byteWritten = %ld\n",byteWritten);
           }
           else if(maxOutput != -1 && totWrittenUni < maxOutput){
             int writableUni = maxOutput - totWrittenUni;
@@ -931,7 +919,7 @@ clearTable(nextProcessTable);
     //------------ CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP -------------
     if(outLogFile != NULL || uniLogFile != NULL){
       unlink(processesListTail -> table -> tmpOutFile);//Eliminazione del file temporaneo di output
-      close(outLogFD);//Chiusura del file descriptor associato al file temporaneo proc. Info
+      close(tmpOutFD);//Chiusura del file descriptor associato al file temporaneo proc. Info
 
     }
     if(errLogFile != NULL || uniLogFile != NULL){
@@ -947,6 +935,10 @@ clearTable(nextProcessTable);
     //---------------------------------- END ---------------------------------------
     //---------------------------------- END ---------------------------------------
 
+    //----------------- PULIZIA E RIMOZIONE DEI FILE TEMPORANEI --------------------
+
+    //---------------------------------- END ---------------------------------------
+
 
 
 
@@ -954,7 +946,6 @@ clearTable(nextProcessTable);
     processesListTail = processesListTail -> next;//Lettura del prossimo elemento in lista
   }
   //-------------------------------------- END -----------------------------------------
-
 
   if(outLogFile != NULL){
     byteWritten = write_w(outLogFD,FRM_EXP_SEPARATOR, strlen(FRM_EXP_SEPARATOR));
@@ -971,8 +962,14 @@ clearTable(nextProcessTable);
     byteWritten = write_w(uniLogFD,"\n",strlen("\n"));
   }
 
+  //Chiusura dei file descriptor associati ai file di log
+  if(outLogFile){close(outLogFD);}
+  if(errLogFile){close(errLogFD);}
+  if(uniLogFile){close(uniLogFD);}
+
   //Rewind della tail per farla tornare a puntare al primo elemento della lista!
   rewindLinkedList(&processesListHead,&processesListTail);
+
 
 //------------------------------------ END -------------------------------------
 //------------------------------------ && --------------------------------------
