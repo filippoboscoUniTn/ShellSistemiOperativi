@@ -1,14 +1,9 @@
 /*
-	CHANGES:
-*/
-
-
-/*
-	this is the command logger source code
-	this program will be called from the shell for every command to be executed
-	depending on the options switch, it logs the stdout/stderr of the command and redirects it to the output pipe
-	it reads from the environment: files pathnames in which to log, pipe in/out and options switches (for what informations to log)
-	the logger will behave as following:
+	Command logger source code
+	This program will be called from the controller for every command to be executed.
+	Depending on the environmental variables, it logs the stdout/stderr of the command and redirects it to the output pipe.
+	Tt reads from the environment: files pathnames in which to log, pipe in/out and options switches (for what informations to log).
+	The logger will behave as following:
 		1) catch the 1st arg treated as command's name
 		2) catch the 2nd arg treated as command's parameters (if present)
 		3) start scanning all environment variables for catching:
@@ -21,31 +16,32 @@
 		6) when the child finishes, the father flushes the buffers, closes output streams, notify the controller and then exit
 */
 
+//---------- DIRECTIVES ----------
 #include "libs/macros.h"
 #include "libs/std_libraries.h"
 #include "libs/types.h"
 #include "libs/functions.h"
+//--------------------------------
 
 
-//flag for the logger, it continues to log until this flag it's put FALSE
+//---------------------------------------------- SIGCHLD HANDLER & FLAG ------------------------------------------------
+//the logger continues to log until this flag it's put FALSE
 volatile sig_atomic_t proc_is_running = TRUE; //put FALSE by the sigchld_handler (when the executed command terminates)
 volatile siginfo_t *pinfo = NULL; //structure where the handler saves process' informations (PID, UID, and so on)
 
-
 //customized SIGCHLD handler
-//it only gives the father a reference to process' informations, unlocks him to free resources and exit
+//it tells the logger to stop logging and  gives him a reference to process' informations
 void sigchld_handler(int signum, siginfo_t *info, void *ucontext){
-	//debug
-
 
 	proc_is_running = FALSE; //unlocking father
 	pinfo = info; //giving father the reference
 
 	return;
 }
+//---------------------------------------------------------------------------------------------------------------------
 
 
-//main logic of the logger
+//--------------------------------------------------- MAIN LOGIC ------------------------------------------------------
 int main(int argc, char **argv){
 
 	//if no arguments, error
@@ -251,7 +247,6 @@ int main(int argc, char **argv){
 				}
 			}
 
-
 			//if we are here means that the child finished, and it's possible that he wrote some bytes before finishing and after our last read
 			//so we continue to read until the pipe it's empty
 			while((readb = read(pipes[READ], buffer, CMD_OUT_BUFF_SIZE)) > 0){//reading the command's stdout from pipe
@@ -273,6 +268,8 @@ int main(int argc, char **argv){
 			link_pipe(STDOUT_FILENO, pipes[WRITE]); //links stdout to the buffer pipe before calling exec
 
 			execvp(cmd, args); //executes the command with given parameters
+
+			fprintf(stdout, "Error: command not found.\n");
 			free_resources(cmd, args, argc, buffer, loginfo);
 			exit(EXIT_FAILURE);
 		}

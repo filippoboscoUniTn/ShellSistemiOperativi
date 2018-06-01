@@ -186,8 +186,8 @@
 //------------------- ERROR CODES DEFINITION --------------------
 //--------------------------- END -------------------------------
 
-//--------------------- FORMATTING MARCROS --------------------------
-#define FRM_EXP_SEPARATOR "###############################################################################\n"
+//--------------------- FORMATTING MACROS --------------------------
+/*#define FRM_EXP_SEPARATOR "###############################################################################\n"
 #define FRM_CMD_SEPARATOR "\t/////////////////////////////////////////////////////////////////////\n"
 #define FRM_FLD_SEPARATOR "\t\t---------------------------------------------------------\n"
 #define FRM_INPUT_STRING "\tINPUT EXPRESSION: "
@@ -202,5 +202,22 @@
 #define FRM_PID    "\t\t\tPID:"
 #define FRM_STATUS "\t\t\tSTATUS:"
 #define FRM_UID    "\t\t\tUID:"
+*/
+
+#define FRM_EXP_SEPARATOR "###############################################################################\n"
+#define FRM_CMD_SEPARATOR "/////////////////////////////////////////////////////////////////////\n"
+#define FRM_FLD_SEPARATOR "---------------------------------------------------------\n"
+#define FRM_INPUT_STRING "INPUT EXPRESSION: "
+
+#define FRM_COMMAND "COMMAND: "
+#define FRM_OPTIONS "OPTIONS: "
+#define FRM_PROC_INFO "PROCESS INFORMATION: "
+#define FRM_PROC_OUT "OUTPUT: "
+#define FRM_PROC_ERR "ERROR: "
+
+#define FRM_ERRNO  "ERRNO:"
+#define FRM_PID    "PID:"
+#define FRM_STATUS "STATUS:"
+#define FRM_UID    "UID:"
 
 #endif
