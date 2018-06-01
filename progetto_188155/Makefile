@@ -49,7 +49,7 @@ build: setup compile
 	@echo "Builded."
 
 rund:
-	cd bin && ./shell -out bin/logs/outfile.txt -err bin/logs/errfile.txt -o bin/logs/uniout.txt
+	cd bin && ./shell -out logs/outfile.txt -err logs/errfile.txt -o logs/uniout.txt
 
 cleand: bin/tmp
 	@rm -r -f bin/tmp
