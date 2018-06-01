@@ -31,123 +31,271 @@
       4) Una volta che tutti i figli hanno terminato il controller può andare a raccogliere le informazioni scritte dai logger nei files temporanei e riscriverle nei file specificati dall'utente.
 */
 
-//------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------------
+//------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------
 #include "libs/std_libraries.h"
 #include "libs/macros.h"
 #include "libs/types.h"
 #include "libs/functions.h"
-//------------------------- EXTERNAL LIBRARIES INCLUSION -----------------------------
-//-------------------------------------- END -----------------------------------------
+//-------------------------------------- END -----------------------------------
 
 
-//------------------------- CONTROLLER INVOCATION PARAMETERS -------------------------
+
+//-------------------------- SIGCHLD HANDLER -----------------------------------
+//Hanlder costumizato per il segnale SIGCHLD
+/*
+Quando questo segnale viene ricevuto vengono effettuate le seguenti azioni :
+  1)  Viene ricercata nella lista dei processi la entry per il processo che ha
+      generato il segnale
+  2)  Se l'algoritmo è in attesa del processo viene sbloccato
+  3)  Vengono loggate le informazioni generate dal processo
+  4)  Vengono eliminati i file di log temporanei
+  5)  Viene eliminata la entri del processo dalla lista
+*/
+volatile sig_atomic_t WAITING = FALSE;
+volatile sig_atomic_t WPID = -1;
+processesList_t *globalHead, *globalTail;
+void sigchld_handler(int signum, siginfo_t *info, void *ucontext){
+
+  while(globalTail != NULL){
+    if( (globalTail -> pid == WPID) && (WPID != -1) ){
+
+    }
+
+
+
+    globalTail = globalTail -> next;
+  }
+  //Rewind global list before terminating
+  rewindLinkedList(&globalHead,&globalTail);
+
+	return;
+}
+
+
+
+//-------------------------------- END -----------------------------------------
+
+
+
+
+
+
+
+
+
+//------------------------- CONTROLLER INVOCATION PARAMETERS -------------------
 //argv[0] -> EXECUTABLE NAME
 //argv[1] -> RAW INPUT
 //argv[>1] -> UNDEFINED
-//------------------------- CONTROLLER INVOCATION PARAMETERS -------------------------
-//-------------------------------------- END -----------------------------------------
+//-------------------------------------- END -----------------------------------
 int main(int argc,char **argv){
 
 
-//------------------ ARGUMENTS CHEKING FOR CORRECT PROGRAM'S INVOCATION --------------
+//------------------ ARGUMENTS CHEKING FOR CORRECT PROGRAM'S INVOCATION --------
   if(argc != 2){
     exit_w(ERR_INVCATION_CNT);
   }
-//------------------ ARGUMENTS CHEKING FOR CORRECT PROGRAM'S INVOCATION --------------
-//-------------------------------------- END -----------------------------------------
+//------------------ ARGUMENTS CHEKING FOR CORRECT PROGRAM'S INVOCATION --------
+//-------------------------------------- END -----------------------------------
 
 
 
-//------------------------------ RAW INPUT TOKENIZATION ------------------------------
-  int nTokens = 0;
-  char rawInput[MAX_CMD_LEN];
+
+//--------------------------- VARIABLES DECLARATION ----------------------------
+
+//variabile di ciclo
+int i;
+
+//Numero di token
+int nTokens;
+
+//buffer per contenere  l'espressione ricevuta dalla shell
+char rawInput[MAX_CMD_LEN];
+
+//puntatore alla lista dei token
+token_t **inputTokens;
+
+//Puntatore al token in analisi
+token_t *currentToken;
+
+//Puntatore all'indice del token corrente
+int currentPointer;
+
+//Lista delle pipe
+pipesList_t *pipesHead,*pipesTail;
+
+//Lista delle tabelle dei processi
+processesList_t *processesListHead,*processesListTail;
+
+//Tabelle dei processi
+processTable_t *currentProcessTable,*nextProcessTable;
+
+//intero per memorizzare lo stato di terminazione di un figlio
+int childStatus;
+
+//intero per memorizzare il pid del figlio che ha terminato
+int wpid;
+
+//File descriptor associato ad un file temporaneo generato dal logger
+int tmpOutFD;
+int tmpErrFD;
+int tmpProcInfoFD;
+
+//numero di Byte letti da read() e da write()
+ssize_t byteRead;
+ssize_t byteWritten;
+
+//Nome dei file di log specificati dall'utente
+char * outLogFile;
+char * errLogFile;
+char * uniLogFile;
+char * writeProcInfo;
+
+//Interi per il file descriptor associato ai file di log aperti dal controller
+int outLogFD;
+int errLogFD;
+int uniLogFD;
+
+//Numero massimo di caratteri scritti nei file di logs
+char * maxOutputLength;
+int maxOutput;
+
+//Buffer per la lettura e scrittura del file
+char readBuffer[CMD_OUT_BUFF_SIZE];
+
+//totale scritto per un dato file (utilizzato per tenere traccia di quanto vada scritto se MAX_LEN è stata settata dall'utente)
+int totWrittenOut;
+int totWrittenErr;
+int totWrittenUni;
+
+
+
+//-------------------------------------- END -----------------------------------
+
+
+
+//------------------------- VARIABLES INITIALIZATION ---------------------------
+
+  nTokens = 0;
   strcpy(rawInput,argv[1]);
-  token_t **inputTokens = tokenize(rawInput,&nTokens);
-//------------------------------ RAW INPUT TOKENIZATION ------------------------------
-//-------------------------------------- END -----------------------------------------
 
+  currentPointer = 0;
 
-
-  //Puntatore al token in analisi
-  token_t *currentToken;
-
-  //Puntatore all'indice del token corrente
-  int currentPointer = 0;
-
-  //Flag di errore
-  bool error = FALSE;
-
-  //Lista delle pipe
-  pipesList_t *pipesHead,*pipesTail;
+  //Inizializzazione delle liste a NULL
   pipesHead = NULL;
   pipesTail = NULL;
-
-  //Lista delle tabelle dei processi
-  processesList_t *processesListHead,*processesListTail;
   processesListHead = NULL;
   processesListTail = NULL;
 
-  //Tabelle dei processi
-  processTable_t *currentProcessTable,*nextProcessTable;
+  //Inizializzazione delle tabelle dei processi CPT e NPT
   currentProcessTable = malloc(sizeof(processTable_t));
   nextProcessTable = malloc(sizeof(processTable_t));
   clearTable(currentProcessTable);
   clearTable(nextProcessTable);
 
-  int tmpOutFD;
-  int tmpErrFD;
-  int tmpProcInfoFD;
+  //----------------------- LETTURA VARIABILI D'AMBIENTE -----------------------
+  outLogFile = getenv(EV_SHELL_STDOUTFILE);
+  errLogFile = getenv(EV_SHELL_STDERRFILE);
+  uniLogFile = getenv(EV_SHELL_UNIOUTFILE);
+  printf("outLogFile = %s\n",outLogFile );
+  printf("errLogFile = %s\n",errLogFile );
+  printf("uniLogFile = %s\n",uniLogFile );
 
-  ssize_t byteRead; //numero di Byte letti da read()
-  ssize_t byteWritten; //numero di Byte scritti da write()
+  writeProcInfo = getenv(EV_PROC_INFO); //Se è definita vanno scritte anche le info del processo
+  maxOutputLength = getenv(EV_MAXLEN);
+  printf("writeProcInfo = %s\n",writeProcInfo );
+  printf("maxOutputLength = %s\n",maxOutputLength );
 
-  while( (currentPointer < nTokens) && !error ){
-    //Leggo un token
+  if(maxOutputLength != NULL){
+    maxOutput = atoi(maxOutputLength);
+  }
+  else{
+    maxOutput = -1;
+  }
+  //-------------------------------------- END ---------------------------------
+
+//-------------------------------------- END -----------------------------------
+
+
+
+  //------------------------------ RAW INPUT TOKENIZATION ----------------------
+  inputTokens = tokenize(rawInput,&nTokens);
+  //-------------------------------------- END ---------------------------------
+
+
+
+  //------------------- ALGORITMO DI GENERAZIONE DEI LOGGER --------------------
+  while( currentPointer < nTokens ){
+
+    //Lettura di un token
     currentToken = inputTokens[currentPointer];
-    //Controllo sul TIPO di token
+
+    //----------------------- CONTROLLO SUL TIPO DI TOKEN ----------------------
     switch(currentToken->type){
 
+      //------------------------------- CASE COMMAND ---------------------------------
       case COMMAND :
 
+        //------------------ INSERIMENTO DEL COMANDO IN CPT --------------------
         if(strcmp(currentProcessTable->command,"") != 0)  { exit_w(ERR_CMD_EXSTS);}
         strcpy(currentProcessTable->command,currentToken->value);
         char tmpName[MAX_CMD_LEN];
+        //------------------------------ END -----------------------------------
 
-        strcpy(tmpName,"./tmp/");
-        //strcat(tmpName,(char*)currentToken->value);
-        strcat(tmpName,"outFile_XXXXXX");
-        tmpOutFD = mkstemp_w(tmpName);
-        strcpy(currentProcessTable->tmpOutFile,tmpName);
-        close(tmpOutFD);
 
-        strcpy(tmpName,"./tmp/");
-        //strcat(tmpName,currentToken->value);
-        strcat(tmpName,"errFile_XXXXXX");
-        tmpErrFD = mkstemp_w(tmpName);
-        strcpy(currentProcessTable->tmpErrFile,tmpName);
-        close(tmpErrFD);
 
-        strcpy(tmpName,"./tmp/");
-        //strcat(tmpName,currentToken->value);
+        //-------------------- CREAZIONE FILE TEMPORANEI -----------------------
+        if(outLogFile || uniLogFile){
+          printf("creazione file di log tmp out");
+          strcpy(tmpName,"tmp/");
+          strcat(tmpName,"outFile_XXXXXX");
+          tmpOutFD = mkstemp_w(tmpName);
+          strcpy(currentProcessTable->tmpOutFile,tmpName);
+          close(tmpOutFD);
+        }
+        if(errLogFile || uniLogFile){
+          strcpy(tmpName,"tmp/");
+          strcat(tmpName,"errFile_XXXXXX");
+          tmpErrFD = mkstemp_w(tmpName);
+          strcpy(currentProcessTable->tmpErrFile,tmpName);
+          close(tmpErrFD);
+        }
+        if(!writeProcInfo){
+        strcpy(tmpName,"tmp/");
         strcat(tmpName,"procInfoFile_XXXXXX");
         tmpProcInfoFD = mkstemp_w(tmpName);
         strcpy(currentProcessTable->tmpProcInfoFile,tmpName);
         close(tmpProcInfoFD);
+      }
+        //----------------------------- END ------------------------------------
 
+
+
+        //--------------- INIZIALIZZAZIONE DEL NUMERO DI OPZIONI----------------
         currentProcessTable->nOptions = 0;
+        //----------------------------- END ------------------------------------
 
         break;
+      //--------------------------- CASE COMMAND END ---------------------------------
 
+
+
+      //------------------------------- CASE OPTION ----------------------------------
       case OPTION :
 
-
+        //------------- COPIA DELL'OPZIONE NELLA LISTA DELLE OPZIONI -----------
         if(currentProcessTable->nOptions > MAX_ARGUMENTS) {  exit_w(ERR_MAX_ARGS); }
         if( strcmp(currentProcessTable->options[currentProcessTable->nOptions],"") != 0)  { exit_w(ERR_OPT_EXSTS); }
         strcpy(currentProcessTable->options[currentProcessTable->nOptions],currentToken->value);
         currentProcessTable->nOptions += 1;
+        //----------------------------- END ------------------------------------
 
         break;
+      //---------------------------- CASE OPTION END --------------------------------
 
+
+
+      //------------------------------- CASE OPERATOR --------------------------------
       case OPERATOR :
 
 
@@ -155,30 +303,26 @@ int main(int argc,char **argv){
 
           case IN_REDIRECT:{
 
-
-            int nextPointer = currentPointer +1;
-            token_t *fileToken = inputTokens[nextPointer];
-            if(fileToken -> type != FILE_){exit_w(ERR_FILE_XPCTD);}
-            if(currentProcessTable -> inputPipe != -1){exit_w(ERR_INPUT_OVRITE);}
-            strcpy(currentProcessTable -> inputFile,fileToken -> value);
-            currentProcessTable -> inputPipe = open_w(currentProcessTable -> inputFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
-            currentPointer += 1;
+              int nextPointer = currentPointer +1;
+              token_t *fileToken = inputTokens[nextPointer];
+              if(fileToken -> type != REDIR_FILE){exit_w( ERR_REDIR_FILEXPCTD);}
+              if(currentProcessTable -> inputPipe != -1){exit_w(ERR_INPUT_OVRITE);}
+              strcpy(currentProcessTable -> inputFile,fileToken -> value);
+              currentProcessTable -> inputPipe = open_w(currentProcessTable -> inputFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+              currentPointer += 1;
             }
-
           break;
 
           case OUT_REDIRECT:{
 
-
             int nextPointer = currentPointer +1;
             token_t *fileToken = inputTokens[nextPointer];
-            if(fileToken -> type != FILE_){exit_w(ERR_FILE_XPCTD);}
+            if(fileToken -> type != REDIR_FILE){exit_w( ERR_REDIR_FILEXPCTD);}
             strcpy(currentProcessTable -> outRedirectFile,fileToken -> value);
             if(currentProcessTable -> outputPipe != -1){exit_w(ERR_INPUT_OVRITE);}
             currentProcessTable -> outputPipe = open_w(currentProcessTable -> outRedirectFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
             currentPointer += 1;
           }
-
           break;
 
           case PIPE:{
@@ -208,9 +352,9 @@ int main(int argc,char **argv){
                 //---------- CHIUSURA DEL LATO READ DELLA PIPE -----------------
                 //----------------- SU CUI IL PROCESSO SCRIVE ------------------
                 char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
-                setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);
-                setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);
-                setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);
+                if(outLogFile || uniLogFile){setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);}
+                if(errLogFile || uniLogFile){setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);}
+                if(!writeProcInfo){setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);}
                 setenv_wi(EV_PIPE_IN,currentProcessTable -> inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable -> outputPipe);
 
@@ -219,7 +363,8 @@ int main(int argc,char **argv){
                   close(currentProcessTable -> inputPipe +1); //vado a chiudere anche il lato write di quella pipe
                 }
                 close( currentProcessTable -> outputPipe -1); //Chiusura lato READ della pipe di output
-                while(processesListTail != NULL){
+
+                while(processesListTail != NULL){ //Chiusura delle pipe associate agli altri operandi
                   if(processesListTail -> table -> inputPipe != -1){
                     close(processesListTail-> table -> inputPipe);
                   }
@@ -269,9 +414,9 @@ int main(int argc,char **argv){
                 //------------------------------- & ----------------------------
                 //----- CHIUSURA LATO WRITE NEL CASO SIA DEFINITA UNA PIPE DI INPUT
                 char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
-                setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
-                setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
-                setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+                if(outLogFile || uniLogFile){setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);}
+                if(errLogFile || uniLogFile){setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);}
+                if(!writeProcInfo){setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);}
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
 
@@ -288,15 +433,16 @@ int main(int argc,char **argv){
                   processesListTail = processesListTail -> next;
                 }
                 //---------------------------- END -----------------------------
-
                 execvp(LOGGER_EXEC_PATH,exec_argv);
                 exit_w(ERR_EXEC_FAIL);
               }
               else if(currentProcessTable -> pid > 0){
+                printf("&& parent\n" );
                 int wstatus;
                 waitpid_w(currentProcessTable -> pid,&wstatus,0);
                 if(WIFEXITED(wstatus)){
                   int status = WEXITSTATUS(wstatus);
+                  printf("child terminatoted, wstatus = %d, status = %d\n",wstatus,status);
                   if(status != 0){
                     nextProcessTable->skip = TRUE;
                   }
@@ -337,9 +483,9 @@ int main(int argc,char **argv){
                 //------------------------------- & ----------------------------
                 //----- CHIUSURA LATO WRITE NEL CASO SIA DEFINITA UNA PIPE DI INPUT
                 char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
-                setenv_w(EV_STDOUTFILE,currentProcessTable->tmpOutFile);
-                setenv_w(EV_STDERRFILE,currentProcessTable->tmpErrFile);
-                setenv_w(EV_PINFO_OUTFILE,currentProcessTable->tmpProcInfoFile);
+                if(outLogFile || uniLogFile){setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);}
+                if(errLogFile || uniLogFile){setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);}
+                if(!writeProcInfo){setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);}
                 setenv_wi(EV_PIPE_IN,currentProcessTable->inputPipe);
                 setenv_wi(EV_PIPE_OUT,currentProcessTable->outputPipe);
 
@@ -400,12 +546,22 @@ int main(int argc,char **argv){
 
         }
         break;
+      //---------------------------- CASE OPERATOR END -------------------------------
 
-      case FILE_ :
 
+
+      //------------------------------- CASE REDIR_FILE -----------------------------------
+      case REDIR_FILE :
         break;
+      //------------------------------- CASE REDIR_FILE -----------------------------------
+
+
 
     }
+    //----------------------- CONTROLLO SUL TIPO DI TOKEN ----------------------
+    //----------------------------------- END ----------------------------------
+
+
     currentPointer += 1;
     if(currentPointer == nTokens){
       //-------------------- CONTROLLO SE IL COMANDO VA ESEGUITO -------------------------
@@ -421,9 +577,9 @@ int main(int argc,char **argv){
                       //------------------------------- & ----------------------------
                       //----- CHIUSURA LATO WRITE NEL CASO SIA DEFINITA UNA PIPE DI INPUT
                       char ** exec_argv = getExecArguments(LOGGER_EXEC_NAME,currentProcessTable);
-                      setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);
-                      setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);
-                      setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);
+                      if(outLogFile || uniLogFile){setenv_w(EV_STDOUTFILE,currentProcessTable -> tmpOutFile);}
+                      if(errLogFile || uniLogFile){setenv_w(EV_STDERRFILE,currentProcessTable -> tmpErrFile);}
+                      if(!writeProcInfo){setenv_w(EV_PINFO_OUTFILE,currentProcessTable -> tmpProcInfoFile);}
                       setenv_wi(EV_PIPE_IN,currentProcessTable -> inputPipe);
                       setenv_wi(EV_PIPE_OUT,currentProcessTable -> outputPipe);
 
@@ -463,11 +619,15 @@ int main(int argc,char **argv){
       clearTable(nextProcessTable);
       //---------------------------- END --------------------------------
     }
-  }
 
-//---------------------------------- ATTESA DEI FIGLI --------------------------------
-  int childStatus;
-  int wpid;
+
+  }
+  //------------------- ALGORITMO DI GENERAZIONE DEI LOGGER --------------------
+  //-------------------------------------- END ---------------------------------
+
+
+
+  //---------------------------------- ATTESA DEI FIGLI ------------------------
   while ( ( wpid = wait(&childStatus) ) > 0){
 
 
@@ -489,75 +649,45 @@ int main(int argc,char **argv){
       }
       rewindLinkedList(&processesListHead,&processesListTail);
   }
-
-
-//--------------------------------- ATTESA DEI FIGLI ---------------------------------
-//-------------------------------------- END -----------------------------------------
-
-
-
-//----------------------- LETTURA VARIABILI D'AMBIENTE -------------------------
-//-------------- CONTENENTI INFORMAZIONI SUI FILE E LE MODALITÀ DI LOG ---------
-  char * outLogFile;
-  char * errLogFile;
-  char * uniLogFile;
-  char * maxOutputLength;
-  int maxOutput;
-
-  outLogFile = getenv(EV_SHELL_STDOUTFILE);
-  errLogFile = getenv(EV_SHELL_STDERRFILE);
-  uniLogFile = getenv(EV_SHELL_UNIOUTFILE);
-  maxOutputLength = getenv(EV_MAXLEN);
+  //--------------------------------- ATTESA DEI FIGLI -------------------------
+  //-------------------------------------- END ---------------------------------
 
 
 
-
-  if(maxOutputLength != NULL){
-    maxOutput = atoi(maxOutputLength);
-  }
-  else{
-    maxOutput = -1;
-  }
-//--------------------------- LETTURA VARIABILI D'AMBIENTE ---------------------------
-//-------------------------------------- END -----------------------------------------
-
-
-
-//------------------------------- APERTURA FILE DI LOG -------------------------------
-//--------------------- E RIPOSIZIONAMENTO CURSORE -----------------------
-  int outLogFD, errLogFD, uniLogFD;
-  if(outLogFile != NULL){
+  //------------------------------- APERTURA FILE DI LOG -------------------------------
+  //--------------------- E RIPOSIZIONAMENTO CURSORE -----------------------
+  if(outLogFile){
     outLogFD = open_w(outLogFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
     lseek_w(outLogFD,0,SEEK_END);
    }
-
-  if(errLogFile != NULL){
+  if(errLogFile){
+    printf("opening errLogFile!\n" );
      errLogFD = open_w(errLogFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
      lseek_w(errLogFD,0,SEEK_END);
     }
 
-  if(uniLogFile != NULL){
+  if(uniLogFile){
       uniLogFD = open_w(uniLogFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
       lseek_w(uniLogFD,0,SEEK_END);
     }
-//------------------------------- APERTURA FILE DI LOG -------------------------------
-//-------------------------------------- END -----------------------------------------
+  //------------------------------- APERTURA FILE DI LOG -------------------------------
+  //-------------------------------------- END -----------------------------------------
 
 
 
-//----------------------------- LETTURA DEI LOG PARZIALI -----------------------------
-//---------------------------------------- && ----------------------------------------
-//------------------------------ SCRITTURA FILE DI LOG  ------------------------------
-//  A questo punto del programma è necessario scorrere la lista dei processi creati.
-//  Per ogni processo vanno letti i file temporanei nei quali sono state salvate le
-//  informazioni relative all'esecuzione di un programma. (i.e. file di std. Output,
-//  file std. Error e processInfo).
-//  Ogni volta che leggo uno di questi files controllo la scelta dell'utente in merito
-//  alla locazione in cui vanno salvati (e.g. salvare out ed err nello stesso file,
-//  in files diversi, etc...) e dove appropriato ricopio le informazioni lette dai files
-//  temporanei.
+  //----------------------------- LETTURA DEI LOG PARZIALI -----------------------------
+  //---------------------------------------- && ----------------------------------------
+  //------------------------------ SCRITTURA FILE DI LOG  ------------------------------
+  //  A questo punto del programma è necessario scorrere la lista dei processi creati.
+  //  Per ogni processo vanno letti i file temporanei nei quali sono state salvate le
+  //  informazioni relative all'esecuzione di un programma. (i.e. file di std. Output,
+  //  file std. Error e processInfo).
+  //  Ogni volta che leggo uno di questi files controllo la scelta dell'utente in merito
+  //  alla locazione in cui vanno salvati (e.g. salvare out ed err nello stesso file,
+  //  in files diversi, etc...) e dove appropriato ricopio le informazioni lette dai files
+  //  temporanei.
 
-  if(outLogFile != NULL){
+  if(outLogFile){
     //Se è la prima opzione scrivo anche il nome del comando
       byteWritten = write_w(outLogFD,FRM_EXP_SEPARATOR,strlen(FRM_EXP_SEPARATOR));
       byteWritten = write_w(outLogFD,FRM_INPUT_STRING,strlen(FRM_INPUT_STRING));
@@ -567,7 +697,7 @@ int main(int argc,char **argv){
       //
 
   }
-  if(errLogFile != NULL){
+  if(errLogFile){
     //Se è la prima opzione scrivo anche il nome del comando
     byteWritten = write_w(errLogFD,FRM_EXP_SEPARATOR,strlen(FRM_EXP_SEPARATOR));
     byteWritten = write_w(errLogFD,FRM_INPUT_STRING,strlen(FRM_INPUT_STRING));
@@ -575,7 +705,7 @@ int main(int argc,char **argv){
     byteWritten = write_w(errLogFD,"\n\n",strlen("\n\n"));
 
   }
-  if(uniLogFile != NULL){
+  if(uniLogFile){
     //Se è la prima opzione scrivo anche il nome del comando
     byteWritten = write_w(uniLogFD,FRM_EXP_SEPARATOR,strlen(FRM_EXP_SEPARATOR));
     byteWritten = write_w(uniLogFD,FRM_INPUT_STRING,strlen(FRM_INPUT_STRING));
@@ -585,36 +715,37 @@ int main(int argc,char **argv){
   }
 
 
-  //Finche non sono in fondo alla lista dei processi
+  //----------------- LETTURA DELLE INFORMAZIONI DEI PROCESSI -----------------
   while(processesListTail != NULL){
 
-    int tmpOutFD = open_w(processesListTail -> table -> tmpOutFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP) ;
-    int tmpErrFD = open_w(processesListTail -> table -> tmpErrFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP) ;
-    int tmpProcInfoFD = open_w(processesListTail -> table -> tmpProcInfoFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP) ;
+    if(outLogFile || uniLogFile){
+      tmpOutFD = open_w(processesListTail -> table -> tmpOutFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP) ;
+    }
+    if(errLogFile || uniLogFile){
+      tmpErrFD = open_w(processesListTail -> table -> tmpErrFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP) ;
+    }
+    if(!writeProcInfo){
+      tmpProcInfoFD = open_w(processesListTail -> table -> tmpProcInfoFile,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP) ;
+    }
 
 
-
-    char readBuffer[CMD_OUT_BUFF_SIZE]; //Buffer per la lettura e scrittura del file
-    int totWrittenOut = 0;
-    int totWrittenErr = 0;
-    int totWrittenUni = 0;
+    totWrittenOut = 0;
+    totWrittenErr = 0;
+    totWrittenUni = 0;
 
 
-//---------------- SCRITTURA INFORMAZIONI DEL COMANDO ESEGUITO -----------------
+    //---------------- SCRITTURA INFORMAZIONI DEL COMANDO ESEGUITO -----------------
     //Scrittura del nome del comando e delle opzioni utilizzate nell'invocazione
     //Controllando sempre che file sono stati definiti dall'utente per la scrittura
-
-    if(outLogFile != NULL){
+    if(outLogFile){
       //Se è la prima opzione scrivo anche il nome del comando
         byteWritten = write_w(outLogFD,FRM_COMMAND,strlen(FRM_COMMAND));
         byteWritten = write_w(outLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
         byteWritten = write_w(outLogFD,"\n",strlen("\n"));
         byteWritten = write_w(outLogFD,FRM_OPTIONS,strlen(FRM_OPTIONS));
 
-        //
-
     }
-    if(errLogFile != NULL){
+    if(errLogFile){
       //Se è la prima opzione scrivo anche il nome del comando
       byteWritten = write_w(errLogFD,FRM_COMMAND,strlen(FRM_COMMAND));
       byteWritten = write_w(errLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
@@ -622,7 +753,7 @@ int main(int argc,char **argv){
       byteWritten = write_w(errLogFD,FRM_OPTIONS,strlen(FRM_OPTIONS));
 
     }
-    if(uniLogFile != NULL){
+    if(uniLogFile){
       //Se è la prima opzione scrivo anche il nome del comando
       byteWritten = write_w(uniLogFD,FRM_COMMAND,strlen(FRM_COMMAND));
       byteWritten = write_w(uniLogFD,processesListTail -> table -> command, strlen(processesListTail -> table -> command));
@@ -631,261 +762,259 @@ int main(int argc,char **argv){
 
     }
 
-
-    int i;
     for(i=0;i<processesListTail -> table -> nOptions;i++){
       //Controllo File di output
-      if(outLogFile != NULL){
+      if(outLogFile){
         byteWritten = write_w(outLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
         byteWritten = write_w(outLogFD," ",strlen(" "));
 
       }
 
       //Controllo File di errore
-      if(errLogFile != NULL){
+      if(errLogFile){
         byteWritten = write_w(errLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
         byteWritten = write_w(errLogFD," ",strlen(" "));
       }
 
       //Controllo File di output ed errore unificati
-      if(uniLogFile != NULL){
+      if(uniLogFile){
         byteWritten = write_w(uniLogFD,processesListTail -> table -> options[i], strlen(processesListTail -> table -> options[i]));
         byteWritten = write_w(uniLogFD," ",strlen(" "));
       }
-
     }
 
-
-    if(outLogFile != NULL){
+    if(outLogFile){
       byteWritten = write_w(outLogFD, "\n", strlen("\n"));
       byteWritten = write_w(outLogFD,FRM_FLD_SEPARATOR, strlen(FRM_FLD_SEPARATOR));
       byteWritten = write_w(outLogFD,FRM_PROC_INFO, strlen(FRM_PROC_INFO));
       byteWritten = write_w(outLogFD,"\n\n",strlen("\n\n"));
     }
 
-    if(errLogFile != NULL){
+    if(errLogFile){
       byteWritten = write_w(errLogFD, "\n", strlen("\n"));
       byteWritten = write_w(errLogFD,FRM_FLD_SEPARATOR,strlen(FRM_FLD_SEPARATOR));
       byteWritten = write_w(errLogFD,FRM_PROC_INFO, strlen(FRM_PROC_INFO));
       byteWritten = write_w(errLogFD,"\n\n",strlen("\n\n"));
     }
 
-    if(uniLogFile != NULL){
+    if(uniLogFile){
       byteWritten = write_w(uniLogFD, "\n", strlen("\n"));
       byteWritten = write_w(uniLogFD,FRM_FLD_SEPARATOR,strlen(FRM_FLD_SEPARATOR));
       byteWritten = write_w(uniLogFD,FRM_PROC_INFO, strlen(FRM_PROC_INFO));
       byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
     }
-
-
-//-------------------------------------- END -------------------------------------
-
+    //-------------------------------------- END -------------------------------------
 
 
 
-//------------------ LETTURA FILE TMP CONTENENTE PROC. INFO ----------------------
+    //------------------ LETTURA FILE TMP CONTENENTE PROC. INFO ----------------------
+        if(!writeProcInfo){
+          //Riposiziono l'indice di lettura per il file temporaneo
+          lseek_w(tmpProcInfoFD,0,SEEK_SET);
+          while( (byteRead = read_w(tmpProcInfoFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+            //Controllo dove scrivere le informazioni e le scrivo
+            if(outLogFile){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
+            if(errLogFile){
+              byteWritten = write_w(errLogFD,readBuffer,byteRead);
+            }
+            if(uniLogFile){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+          }
+          memset(readBuffer,0,CMD_OUT_BUFF_SIZE);//Pulizia del buffer
+        }
+    //-------------------------------------- END -----------------------------------
 
-    //Riposiziono l'indice di lettura per il file temporaneo
-    lseek_w(tmpProcInfoFD,0,SEEK_SET);
-    while( (byteRead = read_w(tmpProcInfoFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
-      //Controllo dove scrivere le informazioni e le scrivo
-      if(outLogFile != NULL){byteWritten = write_w(outLogFD,readBuffer,byteRead);}
-      if(errLogFile != NULL){byteWritten = write_w(errLogFD,readBuffer,byteRead);}
-      if(uniLogFile != NULL){byteWritten = write_w(uniLogFD,readBuffer,byteRead);}
+
+    if(outLogFile){
+      byteWritten = write_w(outLogFD,FRM_FLD_SEPARATOR, strlen(FRM_FLD_SEPARATOR));
+      byteWritten = write_w(outLogFD,FRM_PROC_OUT, strlen(FRM_PROC_OUT));
+      byteWritten = write_w(outLogFD,"\n\n",strlen("\n\n"));
     }
-    //Pulisco il buffer
-    memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
 
-//-------------------------------------- END -----------------------------------
-
-if(outLogFile != NULL){
-  byteWritten = write_w(outLogFD,FRM_FLD_SEPARATOR, strlen(FRM_FLD_SEPARATOR));
-  byteWritten = write_w(outLogFD,FRM_PROC_OUT, strlen(FRM_PROC_OUT));
-  byteWritten = write_w(outLogFD,"\n\n",strlen("\n\n"));
-}
-
-if(errLogFile != NULL){
-  byteWritten = write_w(errLogFD,FRM_FLD_SEPARATOR,strlen(FRM_FLD_SEPARATOR));
-  byteWritten = write_w(errLogFD,FRM_PROC_ERR, strlen(FRM_PROC_ERR));
-  byteWritten = write_w(errLogFD,"\n\n",strlen("\n\n"));
-}
-
-if(uniLogFile != NULL){
-  byteWritten = write_w(uniLogFD,FRM_FLD_SEPARATOR,strlen(FRM_FLD_SEPARATOR));
-  byteWritten = write_w(uniLogFD,FRM_PROC_OUT, strlen(FRM_PROC_OUT));
-  byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
-}
-
-
-//---------------------- LETTURA FILE TMP ASSOCIATO A STD. OUT -----------------
-
-  //Riposiziono l'indice di lettura per il file temporaneo
-  lseek_w(tmpOutFD,0,SEEK_SET);
-  while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
-    //Controllo dove scrivere le informazioni e le scrivo
-    if(outLogFile != NULL){
-      if(maxOutput == -1){
-        byteWritten = write_w(outLogFD,readBuffer,byteRead);
-      }
-      else if(maxOutput != -1 && totWrittenOut < maxOutput){
-        int writableOut = maxOutput - totWrittenOut;
-        if(writableOut >= byteRead){
-          byteWritten = write_w(outLogFD,readBuffer,byteRead);
-          totWrittenOut += byteWritten;
-        }
-        else{
-          byteWritten = write_w(outLogFD,readBuffer,writableOut);
-          totWrittenOut += byteWritten;
-        }
-      }
+    if(errLogFile){
+      byteWritten = write_w(errLogFD,FRM_FLD_SEPARATOR,strlen(FRM_FLD_SEPARATOR));
+      byteWritten = write_w(errLogFD,FRM_PROC_ERR, strlen(FRM_PROC_ERR));
+      byteWritten = write_w(errLogFD,"\n\n",strlen("\n\n"));
     }
-    if(uniLogFile != NULL){
-      if(maxOutput == -1){
-        byteWritten = write_w(uniLogFD,readBuffer,byteRead);
-      }
-      else if(maxOutput != -1 && totWrittenUni < maxOutput){
-        int writableUni = maxOutput - totWrittenUni;
-        if(writableUni >= byteRead){
-          byteWritten = write_w(uniLogFD,readBuffer,byteRead);
-          totWrittenUni += byteWritten;
-        }
-        else{
-          byteWritten = write_w(uniLogFD,readBuffer,writableUni);
-          totWrittenUni += byteWritten;
-        }
-      }
+
+    if(uniLogFile){
+      byteWritten = write_w(uniLogFD,FRM_FLD_SEPARATOR,strlen(FRM_FLD_SEPARATOR));
+      byteWritten = write_w(uniLogFD,FRM_PROC_OUT, strlen(FRM_PROC_OUT));
+      byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
     }
+
+
+    //---------------------- LETTURA FILE TMP ASSOCIATO A STD. OUT -----------------
+      if(outLogFile || uniLogFile){
+        lseek_w(tmpOutFD,0,SEEK_SET);//Riposiziono l'indice di lettura per il file temporaneo
+        while( (byteRead = read_w(tmpOutFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+        //Controllo dove scrivere le informazioni e le scrivo
+        if(outLogFile){
+          if(maxOutput == -1){
+            byteWritten = write_w(outLogFD,readBuffer,byteRead);
+          }
+          else if(maxOutput != -1 && totWrittenOut < maxOutput){
+            int writableOut = maxOutput - totWrittenOut;
+            if(writableOut >= byteRead){
+              byteWritten = write_w(outLogFD,readBuffer,byteRead);
+              totWrittenOut += byteWritten;
+            }
+            else{
+              byteWritten = write_w(outLogFD,readBuffer,writableOut);
+              totWrittenOut += byteWritten;
+            }
+          }
+        }
+        if(uniLogFile){
+          if(maxOutput == -1){
+            byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+          }
+          else if(maxOutput != -1 && totWrittenUni < maxOutput){
+            int writableUni = maxOutput - totWrittenUni;
+            if(writableUni >= byteRead){
+              byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+              totWrittenUni += byteWritten;
+            }
+            else{
+              byteWritten = write_w(uniLogFD,readBuffer,writableUni);
+              totWrittenUni += byteWritten;
+            }
+          }
+        }
+      }
+        memset(readBuffer,0,CMD_OUT_BUFF_SIZE);//Pulizia del buffer
+      }
+    //-------------------------------------- END -----------------------------------
+
+
+    if(outLogFile){
+      byteWritten = write_w(outLogFD,"\n\n",strlen("\n\n"));
+    }
+
+    if(uniLogFile){
+      byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
+      byteWritten = write_w(uniLogFD,FRM_PROC_ERR,strlen(FRM_PROC_ERR));
+      byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
+    }
+
+
+    //------------------- LETTURA FILE TMP ASSOCIATO A STD. ERR --------------------
+      if(errLogFile || uniLogFile){
+        //Riposiziono l'indice di lettura per il file temporaneo
+        lseek_w(tmpErrFD,0,SEEK_SET);
+      while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
+        //Controllo dove scrivere le informazioni e le scrivo
+        if(errLogFile){
+
+          if(maxOutput == -1){
+            byteWritten = write_w(errLogFD,readBuffer,byteRead);
+          }
+          else if(maxOutput != -1 && totWrittenErr < maxOutput){
+
+            int writableErr = maxOutput - totWrittenErr;
+            if(writableErr >= byteRead){
+              byteWritten = write_w(errLogFD,readBuffer,byteRead);
+              totWrittenErr += byteWritten;
+            }
+            else{
+              byteWritten = write_w(errLogFD,readBuffer,writableErr);
+              totWrittenErr += byteWritten;
+            }
+
+          }
+
+        }
+        if(uniLogFile){
+
+          if(maxOutput == -1){
+            byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+          }
+          else if(maxOutput != -1 && totWrittenUni < maxOutput){
+
+            int writableUni = maxOutput - totWrittenUni;
+            if(writableUni >= byteRead){
+              byteWritten = write_w(uniLogFD,readBuffer,byteRead);
+              totWrittenUni += byteWritten;
+            }
+            else{
+              byteWritten = write_w(uniLogFD,readBuffer,writableUni);
+              totWrittenUni += byteWritten;
+            }
+
+          }
+
+        }
+      }
+      memset(readBuffer,0,CMD_OUT_BUFF_SIZE);//Pulizia del buffer
+      }
+    //---------------------------------- END ---------------------------------------
+
+
+    if(outLogFile){
+      //manca per un motivo :)
+      byteWritten = write_w(outLogFD,FRM_CMD_SEPARATOR, strlen(FRM_CMD_SEPARATOR));
+      byteWritten = write_w(outLogFD,"\n",strlen("\n"));
+    }
+
+    if(errLogFile){
+      byteWritten = write_w(errLogFD,"\n\n",strlen("\n\n"));
+      byteWritten = write_w(errLogFD,FRM_CMD_SEPARATOR, strlen(FRM_CMD_SEPARATOR));
+      byteWritten = write_w(errLogFD,"\n",strlen("\n"));
+    }
+
+    if(uniLogFile){
+      byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
+      byteWritten = write_w(uniLogFD,FRM_CMD_SEPARATOR, strlen(FRM_CMD_SEPARATOR));
+      byteWritten = write_w(uniLogFD,"\n",strlen("\n"));
+    }
+
+
+    //----------------- PULIZIA E RIMOZIONE DEI FILE TEMPORANEI --------------------
+    //------------ CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP -------------
+    // if(outLogFile || uniLogFile){
+    //   unlink(processesListTail -> table -> tmpOutFile);//Eliminazione del file temporaneo di output
+    //   close(outLogFD);//Chiusura del file descriptor associato al file temporaneo proc. Info
+    //
+    // }
+    // if(errLogFile || uniLogFile){
+    //   unlink(processesListTail -> table -> tmpErrFile);//Eliminazione del file temporaneo di errore
+    //   close(tmpErrFD);//Chiusura del file descriptor associato al file temporaneo di output
+    //
+    // }
+    // if(!writeProcInfo){
+    //   unlink(processesListTail -> table -> tmpProcInfoFile);//Eliminazione del file temporaneo di proces Info
+    //   close(tmpProcInfoFD);//Chiusura del file descriptor associato al file temporaneo di err
+    //
+    // }
+    //---------------------------------- END ---------------------------------------
+    //---------------------------------- END ---------------------------------------
+
+
+
+
+
+    processesListTail = processesListTail -> next;//Lettura del prossimo elemento in lista
   }
-  //Pulisco il buffer
-  memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
-
-//-------------------------------------- END -----------------------------------
-
-if(outLogFile != NULL){
-  byteWritten = write_w(outLogFD,"\n\n",strlen("\n\n"));
-}
-
-if(uniLogFile != NULL){
-  byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
-  byteWritten = write_w(uniLogFD,FRM_PROC_ERR,strlen(FRM_PROC_ERR));
-  byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
-}
+  //-------------------------------------- END -----------------------------------------
 
 
-//------------------- LETTURA FILE TMP ASSOCIATO A STD. ERR --------------------
-
-  //Riposiziono l'indice di lettura per il file temporaneo
-  lseek_w(tmpErrFD,0,SEEK_SET);
-  while( (byteRead = read_w(tmpErrFD,readBuffer,CMD_OUT_BUFF_SIZE)) > 0){
-    //Controllo dove scrivere le informazioni e le scrivo
-    if(errLogFile != NULL){
-
-      if(maxOutput == -1){
-        byteWritten = write_w(errLogFD,readBuffer,byteRead);
-      }
-      else if(maxOutput != -1 && totWrittenErr < maxOutput){
-
-        int writableErr = maxOutput - totWrittenErr;
-        if(writableErr >= byteRead){
-          byteWritten = write_w(errLogFD,readBuffer,byteRead);
-          totWrittenErr += byteWritten;
-        }
-        else{
-          byteWritten = write_w(errLogFD,readBuffer,writableErr);
-          totWrittenErr += byteWritten;
-        }
-
-      }
-
-    }
-    if(uniLogFile != NULL){
-
-      if(maxOutput == -1){
-        byteWritten = write_w(uniLogFD,readBuffer,byteRead);
-      }
-      else if(maxOutput != -1 && totWrittenUni < maxOutput){
-
-        int writableUni = maxOutput - totWrittenUni;
-        if(writableUni >= byteRead){
-          byteWritten = write_w(uniLogFD,readBuffer,byteRead);
-          totWrittenUni += byteWritten;
-        }
-        else{
-          byteWritten = write_w(uniLogFD,readBuffer,writableUni);
-          totWrittenUni += byteWritten;
-        }
-
-      }
-
-    }
-  }
-  //Pulisco il buffer
-  memset(readBuffer,0,CMD_OUT_BUFF_SIZE);
-
-//---------------------------------- END ---------------------------------------
-
-if(outLogFile != NULL){
-  //manca per un motivo :)
-  byteWritten = write_w(outLogFD,FRM_CMD_SEPARATOR, strlen(FRM_CMD_SEPARATOR));
-  byteWritten = write_w(outLogFD,"\n",strlen("\n"));
-}
-
-if(errLogFile != NULL){
-  byteWritten = write_w(errLogFD,"\n\n",strlen("\n\n"));
-  byteWritten = write_w(errLogFD,FRM_CMD_SEPARATOR, strlen(FRM_CMD_SEPARATOR));
-  byteWritten = write_w(errLogFD,"\n",strlen("\n"));
-}
-
-if(uniLogFile != NULL){
-  byteWritten = write_w(uniLogFD,"\n\n",strlen("\n\n"));
-  byteWritten = write_w(uniLogFD,FRM_CMD_SEPARATOR, strlen(FRM_CMD_SEPARATOR));
-  byteWritten = write_w(uniLogFD,"\n",strlen("\n"));
-}
-
-
-
-
-//----------------- PULIZIA E RIMOZIONE DEI FILE TEMPORANEI --------------------
-    // //Eliminazione del file temporaneo di output
-    // unlink(processesListTail -> table -> tmpOutFile);
-    // //Eliminazione del file temporaneo di errore
-    // unlink(processesListTail -> table -> tmpErrFile);
-    // //Eliminazione del file temporaneo di proces Info
-    // unlink(processesListTail -> table -> tmpProcInfoFile);
-//---------------------------------- END ---------------------------------------
-
-//------------ CHIUSURA DEI FILE DESCRIPTORS ASSOCIATI AI FILE TMP -------------
-
-    //Chiusura del file descriptor associato al file temporaneo proc. Info
-    close(tmpProcInfoFD);
-    //Chiusura del file descriptor associato al file temporaneo di output
-    close(tmpOutFD);
-    //Chiusura del file descriptor associato al file temporaneo di err
-    close(tmpErrFD);
-
-//---------------------------------- END ---------------------------------------
-
-    //Leggi il prossimo elemento della lista
-    processesListTail = processesListTail -> next;
-  }
-
-  if(outLogFile != NULL){
+  if(outLogFile){
     byteWritten = write_w(outLogFD,FRM_EXP_SEPARATOR, strlen(FRM_EXP_SEPARATOR));
     byteWritten = write_w(outLogFD,"\n",strlen("\n"));
   }
 
-  if(errLogFile != NULL){
+  if(errLogFile){
     byteWritten = write_w(errLogFD,FRM_EXP_SEPARATOR, strlen(FRM_EXP_SEPARATOR));
     byteWritten = write_w(errLogFD,"\n",strlen("\n"));
   }
 
-  if(uniLogFile != NULL){
+  if(uniLogFile){
     byteWritten = write_w(uniLogFD,FRM_EXP_SEPARATOR, strlen(FRM_EXP_SEPARATOR));
     byteWritten = write_w(uniLogFD,"\n",strlen("\n"));
   }
 
   //Rewind della tail per farla tornare a puntare al primo elemento della lista!
   rewindLinkedList(&processesListHead,&processesListTail);
+
 //------------------------------------ END -------------------------------------
 //------------------------------------ && --------------------------------------
 //------------------------------------ END -------------------------------------

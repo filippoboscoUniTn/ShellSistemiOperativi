@@ -146,7 +146,7 @@
 #define OPERATOR 100
 #define COMMAND 200
 #define OPTION 300
-#define FILE_ 400
+#define REDIR_FILE 400
 
 //Values
 #define PIPE 0
@@ -170,7 +170,7 @@
 #define ERR_CMD_EXSTS 7
 #define ERR_MAX_ARGS 8
 #define ERR_OPT_EXSTS 9
-#define ERR_FILE_XPCTD 10
+#define ERR_REDIR_FILEXPCTD 10
 #define ERR_EXEC_FAIL 11
 #define ERR_FORK_FAIL 12
 #define ERR_SYNTAX_OPERATORS 13

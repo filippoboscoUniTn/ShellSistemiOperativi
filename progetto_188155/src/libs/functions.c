@@ -265,7 +265,7 @@ char * getErrorMessage(int errno){
 			strcpy(errMessage,"Error copying option to process' table. Alredy an option\0");
 		break;
 
-		case ERR_FILE_XPCTD:
+		case ERR_REDIR_FILEXPCTD:
 			strcpy(errMessage,"Error : expected file after IN/OUT redirect operator\0");
 		break;
 
@@ -330,7 +330,7 @@ void printError(int errno){
 			printf("Error copying option to process' table. Alredy an option\n");
 		break;
 
-		case ERR_FILE_XPCTD:
+		case ERR_REDIR_FILEXPCTD:
 			printf("Error : expected file after IN/OUT redirect operator\n");
 		break;
 
@@ -437,16 +437,15 @@ void waitpid_w(int pid,int *wstatus,int flag){
 }
 
 int open_w(char *path,int flag, mode_t mode){
-	//
   int fd;
   fd = open(path,flag,mode);
-	//
   if(fd < 0){
     perror("ERR_OPEN  ");
     exit(ERR_OPEN);
   }
   return fd;
 }
+
 int close_w(int FD){
 	int closeResult;
 	closeResult = close(FD);
@@ -478,6 +477,7 @@ char ** getExecArguments(char * executable,processTable_t *table){
 
 		return exec_argv;
 }
+
 
 
 void printToken(token_t*token){
@@ -521,7 +521,7 @@ void printToken(token_t*token){
       printf("token->type = OPTION\ntoken->value = %s\n",(char*)token->value);
     break;
 
-    case FILE_:
+    case REDIR_FILE:
       printf("token->type = FILE\ntoken->value = %s\n",(char*)token->value);
     break;
 
@@ -529,6 +529,7 @@ void printToken(token_t*token){
     break;
   }
 }
+
 
 bool isOperator(char* inputString,token_t*tokenTmp){
 	bool VERBOSE = FALSE;
@@ -634,7 +635,7 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
         exit_w(ERR_SYNTAX_OPERATORS);
       }
       else if(lteq_redirect){
-        exit_w(ERR_FILE_XPCTD);
+        exit_w(ERR_REDIR_FILEXPCTD);
       }
       else if(lteq_command || lteq_option || lteq_fileName){
         if( *((int*)(tokenTmp -> value)) == IN_REDIRECT || *((int*)(tokenTmp -> value)) == OUT_REDIRECT){
@@ -663,7 +664,7 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
       //Match as fileName for redirect
       if(lteq_redirect){
         if(VERBOSE){printf("matching ' %s ' as file Name\n",words[wordsCounter]);}
-        tokenTmp -> type = FILE_;
+        tokenTmp -> type = ERR_REDIR_FILEXPCTD;
         tokenTmp -> value = malloc(MAX_FILE_NAME_LEN*sizeof(char));
         strcpy((tokenTmp -> value),words[wordsCounter]);
         tokenArray[(nTokens)] = tokenTmp;
@@ -717,6 +718,7 @@ token_t **tokenize(char *rawInput,int *tokenNumber){
 	*tokenNumber = nTokens;
   return tokenArray;
 }
+
 
 void clearTable(processTable_t *table){
 
