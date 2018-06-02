@@ -463,6 +463,7 @@ void waitpid_w(int pid,int *wstatus,int flag){
     perror("ERR_WAIT  ");
     exit(ERR_WAIT);
   }
+	return;
 }
 
 int open_w(char *path,int flag, mode_t mode){
@@ -761,8 +762,8 @@ void clearTable(processTable_t *table){
 	strcpy(table -> outRedirectFile,"");
 	strcpy(table -> inputFile,"");
 
-	table -> inputPipe = -1;
-	table -> outputPipe = -1;
+	table -> inputPipe = 1;
+	table -> outputPipe = 2;
 
 	table -> pid = -1;
 	table -> status = -1;
