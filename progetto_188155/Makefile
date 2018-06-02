@@ -32,6 +32,11 @@ compile_shell: src/libs/functions.h src/libs/functions.c src/libs/macros.h src/l
 	@echo "Compiling shell..."
 	gcc -std=gnu90 src/shell.c src/libs/functions.c -o bin/shell
 	@echo "Finished."
+
+compile_shell_g: src/libs/functions.h src/libs/functions.c src/libs/macros.h src/libs/std_libraries.h src/libs/types.h src/shell.c bin/controller
+		@echo "Compiling shell..."
+		gcc -g -std=gnu90 src/shell.c src/libs/functions.c -o bin/shell
+		@echo "Finished."
 #-----------------------------------------------------------------------------------------
 
 

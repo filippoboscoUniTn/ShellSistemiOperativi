@@ -53,9 +53,9 @@ int main(int argc, char **argv){
 	argtype_t arg_type; //argument type holder
 	char *env_var_key = NULL; //pointer for temporarily holding environment variable key to be passed to the setenv()
 	char input[CMD_EXP_BUFF_SIZE]; //buffer for holding the user input expression
-	char *buffer; //buffer for holding part of the expression while tokenizing by ';'
+	char *buffer = NULL; //buffer for holding part of the expression while tokenizing by ';'
 	char *args[3]; //arguments buffer for passing it to exec (0 controller name, 1 command expression, 2 null)
-	char *path; //needed for holding the modified PATH environment variable value to be passed to the setenv()
+	char *path = NULL; //needed for holding the modified PATH environment variable value to be passed to the setenv()
 	char *buffer_path = NULL; //needed for catching actual PATH environment variable value
 	pid_t pid; //needed when forking
 	int finished_executing = FALSE; //flag for stopping while loop when finished spawning controllers
@@ -252,8 +252,6 @@ int main(int argc, char **argv){
 
 	//------------------------------------- FREEING RESOURCES -------------------------------------
 	if(env_var_key != NULL){ free(env_var_key); }
-
-	if(buffer != NULL){ free(buffer); }
 
 	if(path != NULL){ free(path); }
 
