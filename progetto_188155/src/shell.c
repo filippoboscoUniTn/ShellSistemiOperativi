@@ -170,12 +170,19 @@ int main(int argc, char **argv){
 		fflush(stdin); //flushing stream for cleaning the input
 		fflush(stdout); //flushing stream for cleaning the output
 		printf("BoGosh> "); //prompt
+		fflush(stdout); //flushing stream for cleaning the output
 		fgets(input, CMD_EXP_BUFF_SIZE, stdin); //saves the input in the buffer to be tokenized
 
 
 		//---------- QUITTING CHECK ----------
 		if( strcmp(input, "/quit\n") == 0 ){
 			quitted = TRUE;
+		}
+		//------------------------------------
+
+		//---------- EMPTY LINE CHECK ----------
+		else if( strcmp(input, "\n") == 0 ){
+			//do nothing
 		}
 		//------------------------------------
 
