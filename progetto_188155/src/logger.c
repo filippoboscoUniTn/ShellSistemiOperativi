@@ -102,16 +102,11 @@ int main(int argc, char **argv){
 
 	loginfo -> pipe_in = atoi(getenv(EV_PIPE_IN));
 	loginfo -> pipe_out = atoi(getenv(EV_PIPE_OUT));
+
+	if(loginfo -> pipe_in == -1){ loginfo -> pipe_in = STDIN_FILENO; }
+
+	if(loginfo -> pipe_out == -1){ loginfo -> pipe_out = STDOUT_FILENO; }
 	//---------------------------------------------------------------------------------------------
-
-	if(loginfo -> pipe_in == -1){
-		loginfo -> pipe_in = STDIN_FILENO;
-	}
-
-	if(loginfo -> pipe_out == -1){
-		loginfo -> pipe_out = STDOUT_FILENO;
-	}
-
 
 
 	//------------------------------------- LOGGER LOGIC start ------------------------------------
@@ -252,8 +247,8 @@ int main(int argc, char **argv){
 		else if(pid == 0){
 
 			close(pipes[READ]); //doesn't need to read from this pipe
-			link_pipe(STDIN_FILENO, loginfo -> pipe_in); //links stdin to the pipe_it before calling exec
-			link_pipe(STDOUT_FILENO, pipes[WRITE]); //links stdout to the buffer pipe before calling exec
+			dup2(loginfo -> pipe_in, STDIN_FILENO); //links stdin to the pipe_it before calling exec
+			dup2(pipes[WRITE], STDOUT_FILENO); //links stdout to the buffer pipe before calling exec
 
 			execvp(cmd, args); //executes the command with given parameters
 
