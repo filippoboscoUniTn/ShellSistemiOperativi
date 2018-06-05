@@ -58,7 +58,6 @@ int main(int argc, char **argv){
 	sigaction(SIGCHLD, &act, NULL); //tells the OS to execute our handler when receiving SIGCHLD
 	//---------------------------------------------------------------------------------------------
 
-
 	//----------------------------------- VARIABLES DEFINITIONS -----------------------------------
 	char *cmd; //command's name to be passed to the exec
 
@@ -75,6 +74,8 @@ int main(int argc, char **argv){
 	char *env_buffer; //buffer for temporarily holding the result of getenv()
 	FILE *proc_infof; //file stream for writing the process information
 	int child_exit_status; //needed for exiting, the logger exits with the same status of the executed command (for notify the controller)
+
+	int exit_status; //Logger's exit status
 	//---------------------------------------------------------------------------------------------
 
 
@@ -88,6 +89,8 @@ int main(int argc, char **argv){
 
 	pipes[READ] = -1; //read end used to read the executed command stdout, log and redirect it
 	pipes[WRITE] = -1; //write end linked to the executed command, this allow us to read and elaborate the output
+
+	exit_status = EXIT_SUCCESS;
 	//---------------------------------------------------------------------------------------------
 
 
@@ -103,11 +106,10 @@ int main(int argc, char **argv){
 	loginfo -> pipe_in = atoi(getenv(EV_PIPE_IN));
 	loginfo -> pipe_out = atoi(getenv(EV_PIPE_OUT));
 
-	if(loginfo -> pipe_in == -1){ loginfo -> pipe_in = STDIN_FILENO; }
+	if(loginfo -> pipe_in == 1){ loginfo -> pipe_in = STDIN_FILENO; }
 
-	if(loginfo -> pipe_out == -1){ loginfo -> pipe_out = STDOUT_FILENO; }
+	if(loginfo -> pipe_out == 2){ loginfo -> pipe_out = STDOUT_FILENO; }
 	//---------------------------------------------------------------------------------------------
-
 
 	//------------------------------------- LOGGER LOGIC start ------------------------------------
 	//based on the environment variables (if they are present or not)
@@ -158,7 +160,7 @@ int main(int argc, char **argv){
 		//it has to log the output
 		else if(pid > 0){
 
-			wait(NULL); //waits the child and then continues executing logic
+			//wait(NULL); //waits the child and then continues executing logic
 		}
 
 		//---------- ERROR FORKING ----------
@@ -317,15 +319,13 @@ int main(int argc, char **argv){
 		fflush(proc_infof);
 		fclose(proc_infof); //we close the file stream
 
-		child_exit_status = (int)pinfo -> si_status;
 	}
 
 	//-------------------------------- PROCESS INFO HANDLING end ----------------------------------
-
+	wait(&child_exit_status);
 	if (WIFEXITED(child_exit_status)){
-        child_exit_status = WEXITSTATUS(child_exit_status);
+        exit_status = WEXITSTATUS(child_exit_status);
 	}
-
 
 
 	//-------------------------------------- LOGGER LOGIC end -------------------------------------
@@ -334,5 +334,5 @@ int main(int argc, char **argv){
 	if(pipes[READ] != -1){ close(pipes[READ]); }
 	free_resources(cmd, args, argc, buffer, loginfo);
 
-	exit(child_exit_status);
+	exit(exit_status);
 }
